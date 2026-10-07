@@ -1,0 +1,115 @@
+[
+  {
+    "name": "PySide6_Essentials",
+    "version": "6.11.2",
+    "license": "LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only",
+    "notices": [
+      "pyside6_essentials-6.11.2.dist-info/licenses/LicenseRef-Qt-Commercial.txt"
+    ]
+  },
+  {
+    "name": "shiboken6",
+    "version": "6.11.2",
+    "license": "LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only",
+    "notices": [
+      "shiboken6-6.11.2.dist-info/licenses/LicenseRef-Qt-Commercial.txt"
+    ]
+  },
+  {
+    "name": "httpx",
+    "version": "0.28.1",
+    "license": "BSD-3-Clause",
+    "notices": [
+      "httpx-0.28.1.dist-info/licenses/LICENSE.md"
+    ]
+  },
+  {
+    "name": "httpcore",
+    "version": "1.0.9",
+    "license": "BSD-3-Clause",
+    "notices": [
+      "httpcore-1.0.9.dist-info/licenses/LICENSE.md"
+    ]
+  },
+  {
+    "name": "h11",
+    "version": "0.16.0",
+    "license": "MIT",
+    "notices": [
+      "h11-0.16.0.dist-info/licenses/LICENSE.txt"
+    ]
+  },
+  {
+    "name": "anyio",
+    "version": "4.15.1",
+    "license": "MIT",
+    "notices": [
+      "anyio-4.15.1.dist-info/licenses/LICENSE"
+    ]
+  },
+  {
+    "name": "idna",
+    "version": "3.20",
+    "license": "BSD-3-Clause",
+    "notices": [
+      "idna-3.20.dist-info/licenses/LICENSE.md"
+    ]
+  },
+  {
+    "name": "certifi",
+    "version": "2026.7.22",
+    "license": "MPL-2.0",
+    "notices": [
+      "certifi-2026.7.22.dist-info/licenses/LICENSE"
+    ]
+  },
+  {
+    "name": "typing_extensions",
+    "version": "4.16.0",
+    "license": "PSF-2.0",
+    "notices": [
+      "typing_extensions-4.16.0.dist-info/licenses/LICENSE"
+    ]
+  },
+  {
+    "name": "packaging",
+    "version": "26.3",
+    "license": "Apache-2.0 OR BSD-2-Clause",
+    "notices": [
+      "packaging-26.3.dist-info/licenses/LICENSE",
+      "packaging-26.3.dist-info/licenses/LICENSE.APACHE",
+      "packaging-26.3.dist-info/licenses/LICENSE.BSD"
+    ]
+  },
+  {
+    "name": "pywin32",
+    "version": "312",
+    "license": "PSF",
+    "notices": [
+      "adodbapi/license.txt",
+      "pythonwin/License.txt",
+      "pythonwin/Scintilla-License.txt",
+      "pythonwin/pywin/idle/LICENSE.txt",
+      "pywin32-312.dist-info/licenses/adodbapi/license.txt",
+      "pywin32-312.dist-info/licenses/com/License.txt",
+      "pywin32-312.dist-info/licenses/com/win32comext/mapi/src/MAPIStubLibrary/LICENSE",
+      "pywin32-312.dist-info/licenses/pythonwin/License.txt",
+      "pywin32-312.dist-info/licenses/pythonwin/Scintilla/License.txt",
+      "pywin32-312.dist-info/licenses/pythonwin/pywin/idle/LICENSE.txt",
+      "pywin32-312.dist-info/licenses/win32/License.txt",
+      "win32/License.txt",
+      "win32com/License.txt",
+      "win32comext/License.txt",
+      "win32comext/mapi/MAPIStubLibrary-License.txt",
+      "win32comext/mapi/NOTICE.md"
+    ]
+  },
+  {
+    "name": "pyinstaller",
+    "version": "6.22.3",
+    "license": "GPLv2-or-later with a special exception which allows to use PyInstaller to build and distribute non-free programs (including commercial ones)",
+    "notices": [
+      "pyinstaller-6.22.3.dist-info/licenses/COPYING.txt"
+    ]
+  }
+]
