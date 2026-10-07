@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def public_files():
-    names = (".gitignore", ".gitattributes", "README.md", "LICENSE", "THIRD_PARTY_NOTICES.md",
+    names = (".gitignore", ".gitattributes", "README.md", "README.en.md", "LICENSE", "THIRD_PARTY_NOTICES.md",
              "DISTRIBUTION.md", "SECURITY.md", "pyproject.toml", "uv.lock", "setup.ps1",
              "build.ps1", "run.cmd")
     files = {ROOT / name for name in names}

@@ -1,3 +1,5 @@
+[**한국어**](README.md) | [English](README.en.md)
+
 <p align="center">
   <img src="src/usagedesk/assets/usagedesk-icon.png" width="92" alt="UsageDesk 아이콘">
 </p>
