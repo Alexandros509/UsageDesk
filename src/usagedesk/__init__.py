@@ -1,3 +1,3 @@
 """UsageDesk: independent Windows launcher, with gated provider integration."""
 
-__version__ = "0.1.0a17"
+__version__ = "0.1.0a18"

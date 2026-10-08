@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import time
 from dataclasses import replace
 from pathlib import Path
 
@@ -23,7 +24,6 @@ from PySide6.QtWidgets import (
     QMenu,
     QMessageBox,
     QPushButton,
-    QScrollArea,
     QSystemTrayIcon,
     QTabWidget,
     QTextEdit,
@@ -33,6 +33,7 @@ from PySide6.QtWidgets import (
 
 from . import __version__
 from .bar import DisplayEditor, UsageBar
+from .cpu import CpuMonitor
 from .hotkeys import HotkeyPage, Hotkeys
 from .i18n import tr
 from .language_ui import LanguagePage
@@ -204,10 +205,15 @@ class MainWindow(QMainWindow):
         self.pending = set()
         self.launch_pending = set()
         self.polling = False
+        self.cpu_values = {}
+        self.cpu_monitor = None
+        self.cpu_pending = False
+        self.cpu_last = 0.0
         self.quitting = False
         self.tray_available = tray_enabled and QSystemTrayIcon.isSystemTrayAvailable()
         self.setWindowTitle(tr('UsageDesk {p0} · Claude / Codex / Grok 사용량', p0=__version__))
-        self.resize(850, 600)
+        available = QApplication.primaryScreen().availableGeometry()
+        self.resize(min(960, available.width() - 40), min(820, available.height() - 80))
         self.setMinimumSize(600, 430)
         self.setAcceptDrops(True)
         icon = QIcon(str(Path(__file__).parent / "assets" / "usagedesk.ico"))
@@ -271,9 +277,10 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.hotkey_page, tr('단축키 설정'))
         self.language_page = LanguagePage(self)
         self.tabs.addTab(self.language_page, tr('일반 설정'))
-        self.display_scroll = QScrollArea()
-        self.display_scroll.setWidgetResizable(True)
-        self.tabs.addTab(self.display_scroll, tr("바 표시"))
+        self.display_page = QWidget()
+        self.display_layout = QVBoxLayout(self.display_page)
+        self.display_layout.setContentsMargins(0, 0, 0, 0)
+        self.tabs.addTab(self.display_page, tr("바 표시"))
         self.reset_display_editor()
         self.tabs.currentChanged.connect(self.settings_tab_changed)
         QApplication.instance().aboutToQuit.connect(self.hotkeys.close)
@@ -473,12 +480,39 @@ class MainWindow(QMainWindow):
             return
         self.polling = True
         self.submit(("poll", None), self.launcher.poll)
+        enabled = self.bar.options.cpu_ai or self.bar.options.cpu_programs
+        if enabled and not self.cpu_pending and time.monotonic() - self.cpu_last >= 2:
+            self.cpu_pending = True
+            self.cpu_last = time.monotonic()
+            ai = self.bar.options.cpu_ai
+            entries = list(self.entries) if self.bar.options.cpu_programs else []
+            self.submit(("cpu", None), lambda: self.sample_cpu(entries, ai))
+        elif not enabled and not self.cpu_pending:
+            self.cpu_values = {}
+            self.cpu_monitor = None
+
+    def sample_cpu(self, entries, ai):
+        if self.cpu_monitor is None:
+            self.cpu_monitor = CpuMonitor()
+        roots = {}
+        for entry in entries:
+            if uses_file_association(entry.script_path):
+                roots[entry.id] = None
+            else:
+                roots[entry.id] = {p.pid for p in self.launcher.processes.get(entry.id, [])
+                                   if p.poll() is None}
+        return self.cpu_monitor.sample(roots, ai)
 
     @Slot(object)
     def completed(self, result):
         worker, (kind, entry_id), value, error = result
         self.pending.discard(worker)
         if self.quitting:
+            return
+        if kind == "cpu":
+            self.cpu_pending = False
+            self.cpu_values = value if not error else {}
+            self.bar.refresh()
             return
         if kind == "launch":
             self.launch_pending.discard(entry_id)
@@ -500,8 +534,13 @@ class MainWindow(QMainWindow):
             self.render()
 
     def reset_display_editor(self):
+        old = getattr(self, "display_editor", None)
+        if old is not None:
+            self.display_layout.removeWidget(old)
+            old.hide()
+            old.deleteLater()
         self.display_editor = DisplayEditor(self)
-        self.display_scroll.setWidget(self.display_editor)
+        self.display_layout.addWidget(self.display_editor)
 
     def settings_tab_changed(self, index):
         if index == 4:

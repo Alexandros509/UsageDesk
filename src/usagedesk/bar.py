@@ -67,6 +67,8 @@ class DisplayOptions:
     reset_display: str = "off"
     tray_mode: bool = False
     hide_unselected: bool = False
+    cpu_ai: bool = False
+    cpu_programs: bool = False
 
 
 class DisplayStore:
@@ -103,11 +105,13 @@ class DisplayStore:
             choice("reset_display", ("off", "inline"), "off"),
             legacy_tray or boolean("tray_mode", "false"),
             boolean("hide_unselected", "false"),
+            boolean("cpu_ai", "false"),
+            boolean("cpu_programs", "false"),
         )
 
     def save(self, options):
         for key in ("size", "theme", "appearance", "icons", "percentages", "mode", "length",
-                    "placement", "quota_display", "reset_display", "tray_mode", "hide_unselected"):
+                    "placement", "quota_display", "reset_display", "tray_mode", "hide_unselected", "cpu_ai", "cpu_programs"):
             self.settings.setValue(key, getattr(options, key))
         self.settings.setValue("selected", list(options.selected))
         self.settings.setValue("programs", list(options.programs))
@@ -237,6 +241,31 @@ def keep_on_screen(rect, available):
     )
 
 
+class NoWheelComboBox(QComboBox):
+    def wheelEvent(self, event):
+        if self.view().isVisible():
+            super().wheelEvent(event)
+        else:
+            event.ignore()
+
+
+def cpu_text(owner, key):
+    value = getattr(owner, "cpu_values", {}).get(key)
+    return f"CPU {value.percent:.1f}%" if value and value.percent is not None else "CPU —"
+
+
+def cpu_tooltip(owner, key):
+    value = getattr(owner, "cpu_values", {}).get(key)
+    states = {
+        "not_running": tr("실행 중인 로컬 AI 프로세스를 찾지 못했습니다."),
+        "untracked": tr("프로세스를 특정할 수 없습니다. HTML·문서와 공유 브라우저는 파일별 CPU를 구분할 수 없습니다."),
+        "sampling": tr("CPU 측정 중입니다. 다음 갱신을 기다려 주세요."),
+        "unavailable": tr("프로세스 종료 또는 접근 제한으로 CPU를 측정할 수 없습니다."),
+        "ready": tr("이 PC의 프로세스와 관측된 하위 프로세스 합계 · 전체 CPU 용량 기준 0–100% · 약 2초 간격"),
+    }
+    return "\n" + cpu_text(owner, key) + " · " + states.get(value.state if value else "sampling", states["unavailable"])
+
+
 def configure_popup(combo):
     # The Windows 11 combo delegate can ignore a styled popup's text palette.
     # Use an ordinary item view/delegate with explicit colors in every system theme.
@@ -320,7 +349,10 @@ class DisplayDialog(QDialog):
         root.addWidget(self.tabs)
         display_page = QWidget()
         display_page.setObjectName("displayPage")
-        self.tabs.addTab(display_page, tr('표시'))
+        self.display_scroll = QScrollArea()
+        self.display_scroll.setWidgetResizable(True)
+        self.display_scroll.setWidget(display_page)
+        self.tabs.addTab(self.display_scroll, tr('표시'))
         layout = QVBoxLayout(display_page)
         intro = QLabel(tr('메뉴 바처럼 사용량을 항상 표시합니다.\n떠 있는 모드에서는 왼쪽 손잡이로 위치를 옮길 수 있습니다.'))
         intro.setWordWrap(True)
@@ -366,10 +398,17 @@ class DisplayDialog(QDialog):
         self.percentages.setChecked(options.percentages)
         form.addRow(self.icons)
         form.addRow(self.percentages)
+        self.cpu_ai = QCheckBox(tr("로컬 AI 앱·CLI CPU 표시"))
+        self.cpu_ai.setChecked(options.cpu_ai)
+        self.cpu_programs = QCheckBox(tr("프로그램 CPU 표시"))
+        self.cpu_programs.setChecked(options.cpu_programs)
+        self.cpu_programs.setToolTip(tr("UsageDesk에서 실행하여 추적 가능한 프로세스만 표시합니다. 파일별 CPU는 제공되지 않을 수 있습니다."))
+        form.addRow(self.cpu_ai)
+        form.addRow(self.cpu_programs)
         layout.addWidget(group)
         limits = QGroupBox(tr('표시할 사용 한도'))
         limit_layout = QVBoxLayout(limits)
-        self.mode = QComboBox()
+        self.mode = NoWheelComboBox()
         self.mode.addItem(tr('자동 · 데이터가 있는 모든 한도'), "smart")
         self.mode.addItem(tr('직접 선택'), "custom")
         self.mode.setCurrentIndex(self.mode.findData(options.mode))
@@ -463,7 +502,7 @@ class DisplayDialog(QDialog):
             configure_popup(combo)
 
     def combo(self, layout, title, items, selected):
-        combo = QComboBox()
+        combo = NoWheelComboBox()
         for label, value in items:
             combo.addItem(label, value)
         combo.setCurrentIndex(combo.findData(selected))
@@ -488,6 +527,7 @@ class DisplayDialog(QDialog):
             length=self.length.currentData(), placement=self.bar_placement,
             tray_mode=self.placement.currentData() == "tray",
             hide_unselected=self.hide_unselected.isChecked(),
+            cpu_ai=self.cpu_ai.isChecked(), cpu_programs=self.cpu_programs.isChecked(),
             quota_display=self.quota_display.currentData(),
             reset_display=self.reset_display.currentData(),
         )
@@ -499,7 +539,6 @@ class DisplayEditor(DisplayDialog):
         super().__init__(owner, owner.bar.options, owner.usage.snapshots, owner.entries)
         self.owner = owner
         self.setWindowFlags(Qt.Widget)
-        self.setMinimumHeight(760)
         self.tabs.setTabText(1, tr("바에 표시할 프로그램"))
 
     def accept(self):
@@ -603,7 +642,8 @@ class UsageBar(QWidget):
         budgets, demands = {}, {}
         for provider, name in providers:
             snapshot = self.pane.snapshots.get(provider)
-            title_width = metrics.horizontalAdvance(name) + 42
+            title_width = max(metrics.horizontalAdvance(name),
+                              caption_metrics.horizontalAdvance("CPU 100.0%") if self.options.cpu_ai else 0) + 42
             quotas = visible_limits(snapshot, provider, self.options)
             if quotas:
                 content = sum(max(metrics.horizontalAdvance(
@@ -620,8 +660,10 @@ class UsageBar(QWidget):
             budgets[provider] = title_width + 44
         # Two-line full names, then tighter spacing, one font step, and spare bar space.
         normal_budget = min(360, maximum // 3)
-        self.program_padding = 8
+        self.cpu_program_width = caption_metrics.horizontalAdvance("CPU 100.0%") + 12 if self.options.cpu_programs else 0
+        self.program_padding = 6
         self.program_font = QFont(self.font())
+        self.program_font.setPointSize(max(8, font_size - 1))
 
         def program_rows():
             program_metrics = QFontMetrics(self.program_font)
@@ -629,8 +671,9 @@ class UsageBar(QWidget):
             for entry in self.program_entries:
                 text = program_label(entry.name, program_metrics)
                 width = max(program_metrics.horizontalAdvance(line) for line in text.split("\n"))
-                rows.append((width + self.program_padding * 2, "program", text, entry.id,
-                             tr('{p0}\n{p1}\n클릭하여 열기', p0=entry.name, p1=entry.script_path)))
+                rows.append((width + self.program_padding * 2 + self.cpu_program_width, "program", text, entry.id,
+                             tr('{p0}\n{p1}\n클릭하여 열기', p0=entry.name, p1=entry.script_path)
+                             + (cpu_tooltip(self.owner, entry.id) if self.options.cpu_programs else "")))
             return rows
 
         rows = program_rows()
@@ -638,7 +681,7 @@ class UsageBar(QWidget):
             self.program_padding = 4
             rows = program_rows()
         if sum(row[0] for row in rows) > normal_budget:
-            self.program_font.setPointSize(max(8, font_size - 1))
+            self.program_font.setPointSize(max(8, font_size - 2))
             rows = program_rows()
         # Height must accommodate both lines at the current DPI, without shrinking gauges.
         if rows:
@@ -681,8 +724,11 @@ class UsageBar(QWidget):
             budget = budgets[provider]
             snapshot = self.pane.snapshots.get(provider)
             title = name
-            width = min(metrics.horizontalAdvance(title) + 42, max(35, budget - 44))
+            width = min(max(metrics.horizontalAdvance(title),
+                            caption_metrics.horizontalAdvance("CPU 100.0%") if self.options.cpu_ai else 0) + 42, max(35, budget - 44))
             status = self.pane.cards[provider][0].text()
+            if self.options.cpu_ai:
+                status += cpu_tooltip(self.owner, provider)
             items.append((QRect(x, 0, width, height), "provider", title, None, provider, status))
             x += width
             remaining = budget - width
@@ -877,13 +923,27 @@ class UsageBar(QWidget):
                 pixmap = self.service_images[provider]
                 painter.drawPixmap(QRect(rect.left() + 5, (rect.height() - 23) // 2, 23, 23), pixmap)
                 caption = painter.fontMetrics().elidedText(text, Qt.ElideRight, rect.width() - 28)
-                painter.drawText(rect.adjusted(28, 0, 0, 0), Qt.AlignCenter, caption)
+                painter.drawText(rect.adjusted(28, 0, 0, -12 if self.options.cpu_ai else 0), Qt.AlignCenter, caption)
+                if self.options.cpu_ai:
+                    painter.save()
+                    font = QFont(self.font())
+                    font.setPointSizeF(max(7, font.pointSizeF() - 2))
+                    painter.setFont(font)
+                    painter.drawText(rect.adjusted(28, 17, 0, 0), Qt.AlignCenter, cpu_text(self.owner, provider))
+                    painter.restore()
                 continue
             if action in ("program", "programs"):
                 painter.save()
                 painter.setFont(self.program_font)
                 padding = self.program_padding if action == "program" else 4
-                painter.drawText(rect.adjusted(padding, 0, -padding, 0), Qt.AlignCenter, text)
+                cpu_width = self.cpu_program_width if action == "program" else 0
+                painter.drawText(rect.adjusted(padding, 0, -padding-cpu_width, 0), Qt.AlignCenter, text)
+                if cpu_width:
+                    font = QFont(self.font())
+                    font.setPointSizeF(max(7, font.pointSizeF() - 2))
+                    painter.setFont(font)
+                    painter.drawText(QRect(rect.right()-cpu_width, 0, cpu_width, rect.height()),
+                                     Qt.AlignCenter, cpu_text(self.owner, provider))
                 painter.restore()
                 continue
             if action != "detail":

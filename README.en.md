@@ -10,7 +10,7 @@
 
 UsageDesk is a Windows desktop utility that shows Claude, Codex and Grok usage and reset times, and opens programs, HTML pages and documents from the same bar.
 
-Windows 11 · Python 3.13 · PySide6 · **0.1.0a17 / Alpha** · [MIT](LICENSE)
+Windows 11 · Python 3.13 · PySide6 · **0.1.0a18 / Alpha** · [MIT](LICENSE)
 
 ![UsageDesk toolbar in dark mode](docs/images/toolbar-dark-en.png)
 
@@ -31,6 +31,13 @@ Windows 11 · Python 3.13 · PySide6 · **0.1.0a17 / Alpha** · [MIT](LICENSE)
 Inspired by [Usage4Claude](https://github.com/f-is-h/Usage4Claude), this is an independent Windows application written in Python/Qt. It is not an official Windows port and is not affiliated with Anthropic, OpenAI or xAI.
 
 ## Screenshots
+
+### 0.1.0a18 display improvements
+
+- The settings window opens at up to 960×820 within the screen work area. Bar display Save/Cancel buttons remain fixed below the scrolling content.
+- Program names use a font 1pt smaller than the bar and 6px horizontal padding. Crowded layouts reduce padding to 4px, reduce the font one more step, then use the `+N` menu.
+- In **Bar display → Display → Bar appearance**, toggle local AI app/CLI CPU and program CPU independently. Both default to off. Samples update about every two seconds on a 0–100% scale normalized to all logical CPUs. This measures local processes, not cloud AI servers.
+- AI measurement matches `claude.exe`, `codex.exe`, `grok.exe` and observed descendants. Program measurement covers processes launched and tracked by UsageDesk. Differently named launchers, HTML/documents in shared browsers and inaccessible processes cannot be reliably attributed and show `CPU —`. Short-lived processes may finish between samples.
 
 **Light mode**
 
@@ -172,7 +179,7 @@ See the [release runbook](RUNBOOK.en.md) for preparation, publication review, Gi
 
 Current validation: **280 automated tests** (including 53 bar tests), Ruff and Windows EXE startup/shutdown checks. Coverage includes switching bar lengths back and forth, preserving reset-time display, top/bottom docking and restoration from tray mode. This does not guarantee operation across every account, plan or PC environment.
 
-Build output is written to `dist\0.1.0a17\UsageDesk\`. **Move the entire folder, not just the EXE.** Python/Qt notices and library replacement instructions are included. Run `python scripts/package_release.py` to produce binary and corresponding source ZIPs with checksums. This is an unsigned alpha build.
+Build output is written to `dist\0.1.0a18\UsageDesk\`. **Move the entire folder, not just the EXE.** Python/Qt notices and library replacement instructions are included. Run `python scripts/package_release.py` to produce binary and corresponding source ZIPs with checksums. This is an unsigned alpha build.
 
 Regenerate README screenshots with the following command. It uses only an isolated directory and synthetic data:
 

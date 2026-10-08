@@ -571,4 +571,29 @@ EN = {'UsageDesk 사용량 바': 'UsageDesk usage bar',
                                                                           'Select Refresh to check '
                                                                           'again.',
  ' · 다음 자동 조회 약 {p0}분 후': ' · Next automatic check in about {p0}min',
- '적용을 누르면 테마는 즉시 반영되고, 언어를 변경한 경우 앱이 재시작됩니다. 저장된 계정·프로그램·배치·단축키 설정은 유지됩니다.': 'Apply updates the theme immediately. Changing the language restarts the app. Saved accounts, programs, placement and hotkeys are preserved.'}
+ '적용을 누르면 테마는 즉시 반영되고, 언어를 변경한 경우 앱이 재시작됩니다. 저장된 계정·프로그램·배치·단축키 설정은 유지됩니다.': 'Apply updates the '
+                                                                             'theme immediately. '
+                                                                             'Changing the '
+                                                                             'language restarts '
+                                                                             'the app. Saved '
+                                                                             'accounts, programs, '
+                                                                             'placement and '
+                                                                             'hotkeys are '
+                                                                             'preserved.',
+ '실행 중인 로컬 AI 프로세스를 찾지 못했습니다.': 'No running local AI process was found.',
+ '프로세스를 특정할 수 없습니다. HTML·문서와 공유 브라우저는 파일별 CPU를 구분할 수 없습니다.': 'The process cannot be identified. '
+                                                             'Per-file CPU is unavailable for '
+                                                             'HTML, documents and shared browsers.',
+ 'CPU 측정 중입니다. 다음 갱신을 기다려 주세요.': 'Sampling CPU. Please wait for the next update.',
+ '프로세스 종료 또는 접근 제한으로 CPU를 측정할 수 없습니다.': 'CPU is unavailable because the process exited or access '
+                                        'was denied.',
+ '이 PC의 프로세스와 관측된 하위 프로세스 합계 · 전체 CPU 용량 기준 0–100% · 약 2초 간격': 'Local process and observed '
+                                                               'descendants combined · 0–100% of '
+                                                               'total CPU capacity · about every 2 '
+                                                               'seconds',
+ '로컬 AI 앱·CLI CPU 표시': 'Show local AI app/CLI CPU',
+ '프로그램 CPU 표시': 'Show program CPU',
+ 'UsageDesk에서 실행하여 추적 가능한 프로세스만 표시합니다. 파일별 CPU는 제공되지 않을 수 있습니다.': 'Only processes launched and '
+                                                                  'tracked by UsageDesk are '
+                                                                  'measured. Per-file CPU may be '
+                                                                  'unavailable.'}

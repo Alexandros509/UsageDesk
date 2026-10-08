@@ -3,7 +3,6 @@
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import (
     QApplication,
-    QComboBox,
     QFormLayout,
     QLabel,
     QPushButton,
@@ -11,6 +10,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from .bar import NoWheelComboBox
 from .i18n import appearance, initialize, language, save_language, tr
 
 
@@ -20,12 +20,12 @@ class LanguagePage(QWidget):
         self.owner = owner
         layout = QVBoxLayout(self)
         form = QFormLayout()
-        self.choice = QComboBox()
+        self.choice = NoWheelComboBox()
         self.choice.addItem("한국어", "ko")
         self.choice.addItem("English", "en")
         self.choice.setCurrentIndex(self.choice.findData(language()))
         form.addRow(tr("앱 언어"), self.choice)
-        self.appearance = QComboBox()
+        self.appearance = NoWheelComboBox()
         for title, key in [(tr("시스템"), "system"), (tr("밝게"), "light"), (tr("어둡게"), "dark")]:
             self.appearance.addItem(title, key)
         self.appearance.setCurrentIndex(self.appearance.findData(appearance()))

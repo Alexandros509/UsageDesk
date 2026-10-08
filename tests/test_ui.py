@@ -224,7 +224,7 @@ def test_background_settings_does_not_block_global_hotkeys(window, monkeypatch):
 def test_settings_entry_points_use_one_window_and_save_display(window, app):
     from PySide6.QtWidgets import QDialog
     window.bar.settings_dialog()
-    assert window.tabs.currentWidget() is window.display_scroll
+    assert window.tabs.currentWidget() is window.display_page
     assert window.display_editor.isVisible()
     assert not any(isinstance(w, QDialog) and w.isVisible() and w.isWindow()
                    for w in app.topLevelWidgets())
@@ -243,3 +243,23 @@ def test_settings_entry_points_use_one_window_and_save_display(window, app):
     actions = window.tray_menu.actions()
     index = next(i for i,a in enumerate(actions) if a.text() == '설정')
     assert actions[index-1].isSeparator()
+
+
+@pytest.mark.parametrize('size', [(600, 430), (850, 600), (960, 820)])
+def test_display_save_stays_visible_when_content_scrolls(window, app, size):
+    from PySide6.QtCore import QPoint
+    from PySide6.QtWidgets import QPushButton
+    window.open_settings(4)
+    window.resize(*size)
+    app.processEvents()
+    editor = window.display_editor
+    save = editor.findChild(QPushButton, 'saveDisplay')
+    before = save.mapTo(window, QPoint(0, 0))
+    scroll = editor.display_scroll.verticalScrollBar()
+    scroll.setValue(scroll.maximum())
+    app.processEvents()
+    assert save.mapTo(window, QPoint(0, 0)) == before
+    assert save.isVisible()
+    assert window.rect().contains(before)
+    assert window.rect().contains(save.mapTo(window, save.rect().bottomRight()))
+    assert not editor.display_scroll.isAncestorOf(save)

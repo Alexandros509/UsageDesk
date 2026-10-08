@@ -413,7 +413,7 @@ def test_program_names_use_two_lines_without_eliding_and_use_spare_space(bar, mo
     assert not widget.hidden_programs
     assert sum(item[0].width() for item in buttons) > 360
     assert widget.program_padding == 4
-    assert widget.program_font.pointSize() == widget.font().pointSize() - 1
+    assert widget.program_font.pointSize() == max(8, widget.font().pointSize() - 2)
     metrics = QFontMetrics(widget.program_font)
     for item, entry in zip(buttons, owner.entries, strict=True):
         assert "\n" in item[2]
@@ -577,3 +577,49 @@ def test_selected_service_survives_temporarily_missing_usage(bar):
                              hide_unselected=True)
     widget.refresh()
     assert [item[4] for item in widget.items if item[1] == 'provider'] == ['claude']
+
+
+def test_cpu_preferences_layout_and_program_count_do_not_enlarge_fonts(bar):
+    from usagedesk.cpu import Reading
+    widget, pane, owner, app = bar
+    widget.available_geometry = lambda: QRect(0, 0, 1920, 1080)
+    owner.entries = [LauncherEntry(name, rf'C:\apps\{i}.exe', r'C:\apps')
+                     for i, name in enumerate(['TIL MemoRE:Flow', 'TIL MultiPlatform', 'GrokBot'])]
+    sizes = []
+    for count in (2, 3, 2):
+        widget.options = replace(widget.options, size='standard', programs=tuple(e.id for e in owner.entries[:count]))
+        widget.refresh()
+        sizes.append((widget.font().pointSizeF(), widget.height()))
+    assert sizes == [(10, 42)] * 3
+    assert widget.program_font.pointSize() == 9
+    assert widget.program_padding == 6
+    owner.cpu_values = {'claude': Reading(12.5, 'ready'), owner.entries[0].id: Reading(3, 'ready')}
+    widget.options = replace(widget.options, cpu_ai=True, cpu_programs=True)
+    widget.store.save(widget.options)
+    assert widget.store.load() == widget.options
+    widget.refresh()
+    assert widget.font().pointSizeF() == 10 and widget.height() == 42
+    assert any('CPU 12.5%' in item[5] for item in widget.items)
+    assert any('CPU 3.0%' in item[5] for item in widget.items)
+    assert widget.grab().width() == widget.width()
+    dialog = DisplayDialog(widget, widget.options, pane.snapshots, owner.entries)
+    assert dialog.value().cpu_ai and dialog.value().cpu_programs
+    dialog.deleteLater()
+    app.processEvents()
+
+
+def test_closed_combo_ignores_wheel_to_prevent_accidental_size_change(bar):
+    from PySide6.QtCore import QPointF
+    from PySide6.QtGui import QWheelEvent
+    widget, pane, _, app = bar
+    dialog = DisplayDialog(widget, widget.options, pane.snapshots)
+    dialog.show()
+    app.processEvents()
+    combo = dialog.size_choice if hasattr(dialog, 'size_choice') else dialog.size
+    previous = combo.currentIndex()
+    event = QWheelEvent(QPointF(5,5), QPointF(5,5), QPoint(0,0), QPoint(0,-120),
+                        Qt.NoButton, Qt.NoModifier, Qt.NoScrollPhase, False)
+    QApplication.sendEvent(combo,event)
+    assert combo.currentIndex() == previous
+    dialog.hide()
+    dialog.deleteLater()
