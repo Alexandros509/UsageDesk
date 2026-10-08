@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 
+from .i18n import tr
+
 
 @dataclass(frozen=True)
 class QuotaLimit:
@@ -19,15 +21,15 @@ class QuotaLimit:
         if value is not None and (
             type(value) not in (int, float) or not math.isfinite(value) or value < 0
         ):
-            raise ValueError("사용률은 0 이상의 유한 숫자여야 합니다.")
+            raise ValueError(tr('사용률은 0 이상의 유한 숫자여야 합니다.'))
         if self.reset_at_utc is not None:
             if self.reset_at_utc.utcoffset() is None:
-                raise ValueError("초기화 시각에는 시간대가 필요합니다.")
+                raise ValueError(tr('초기화 시각에는 시간대가 필요합니다.'))
             object.__setattr__(self, "reset_at_utc", self.reset_at_utc.astimezone(UTC))
         if self.window_seconds is not None and (
             type(self.window_seconds) is not int or self.window_seconds <= 0
         ):
-            raise ValueError("사용량 창은 양의 정수 초여야 합니다.")
+            raise ValueError(tr('사용량 창은 양의 정수 초여야 합니다.'))
 
     @property
     def remaining_percent(self) -> float | None:
@@ -83,9 +85,9 @@ class RefreshPolicy:
         if generation != self.generation or not self.inflight:
             return False
         if not math.isfinite(jitter) or not 0 <= jitter <= 5:
-            raise ValueError("지터는 0~5초입니다.")
+            raise ValueError(tr('지터는 0~5초입니다.'))
         if retry_after is not None and (not math.isfinite(retry_after) or retry_after < 0):
-            raise ValueError("재시도 대기는 유한한 0 이상 값이어야 합니다.")
+            raise ValueError(tr('재시도 대기는 유한한 0 이상 값이어야 합니다.'))
         self.inflight = False
         if error is None:
             self.failures = 0
@@ -93,6 +95,11 @@ class RefreshPolicy:
             self.next_auto = now + 180
         elif error in {"AUTH_REQUIRED", "BLOCKED"}:
             self.halted = True
+        elif error == "USAGE_UNAVAILABLE":
+            # A successful HTTP response without a quota is not a server rate limit.
+            # Keep the normal polling interval; allow a manual retry after 10 seconds.
+            self.retry_at = 0
+            self.next_auto = now + 180 + jitter
         else:
             self.failures += 1
             backoff = (60, 120, 240, 480, 900)[min(self.failures - 1, 4)]

@@ -87,3 +87,17 @@ def test_retry_after_http_date_delta_and_invalid():
     assert retry_after_seconds("Sun, 04 Oct 2026 23:00:00 GMT", now) == 0
     for value in [None, "garbage", "-1", "nan", "inf", "1.2"]:
         assert retry_after_seconds(value, now) is None
+
+
+def test_missing_usage_uses_normal_interval_without_blocking_manual_retry():
+    policy = RefreshPolicy()
+    policy.reconnect()
+    for now in (0, 200, 400, 600):
+        generation = policy.begin(now, manual=True)
+        assert generation is not None
+        policy.finish(generation, now+1, 'USAGE_UNAVAILABLE', jitter=2)
+        assert policy.next_auto == now+183
+        assert policy.retry_at == 0
+        assert policy.begin(now+9, manual=True) is None
+        assert policy.begin(now+100) is None
+    assert policy.begin(610, manual=True) is not None

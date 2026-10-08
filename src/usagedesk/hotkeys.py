@@ -18,8 +18,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-ACTIONS = {"toggle": "바 표시·숨기기", "usage": "사용량 창 열기",
-           "programs": "프로그램 목록 열기", "refresh": "사용량 새로고침"}
+from .i18n import tr
+
+ACTIONS = {"toggle": tr('바 표시·숨기기'), "usage": tr('사용량 창 열기'),
+           "programs": tr('프로그램 목록 열기'), "refresh": tr('사용량 새로고침')}
 
 
 def parse_key(text):
@@ -27,18 +29,18 @@ def parse_key(text):
         return None
     sequence = QKeySequence(text, QKeySequence.PortableText)
     if sequence.count() != 1:
-        raise ValueError("연속 입력 대신 하나의 키 조합을 지정하세요.")
+        raise ValueError(tr('연속 입력 대신 하나의 키 조합을 지정하세요.'))
     key = sequence[0]
     mods = key.keyboardModifiers()
     value = key.key().value
     if mods & (Qt.MetaModifier | Qt.KeypadModifier) or not mods & (Qt.ControlModifier | Qt.AltModifier):
-        raise ValueError("Ctrl 또는 Alt를 포함하세요. Windows 키는 사용할 수 없습니다.")
+        raise ValueError(tr('Ctrl 또는 Alt를 포함하세요. Windows 키는 사용할 수 없습니다.'))
     if 65 <= value <= 90 or 48 <= value <= 57:
         vk = value
     elif Qt.Key_F1.value <= value <= Qt.Key_F11.value:
         vk = 0x70 + value - Qt.Key_F1.value
     else:
-        raise ValueError("문자 A–Z, 숫자 0–9 또는 F1–F11을 사용하세요.")
+        raise ValueError(tr('문자 A–Z, 숫자 0–9 또는 F1–F11을 사용하세요.'))
     modifiers = (2 if mods & Qt.ControlModifier else 0) | (1 if mods & Qt.AltModifier else 0)
     modifiers |= 4 if mods & Qt.ShiftModifier else 0
     return modifiers, vk
@@ -73,30 +75,30 @@ class Hotkeys(QAbstractNativeEventFilter):
             if self.path.exists():
                 self.apply(json.loads(self.path.read_text("utf-8")), persist=False)
         except (OSError, ValueError, TypeError, AttributeError) as exc:
-            self.error = f"단축키를 활성화하지 못했습니다: {exc}"
+            self.error = tr('단축키를 활성화하지 못했습니다: {p0}', p0=exc)
 
     def write(self, config):
         data = (json.dumps(config, ensure_ascii=False, indent=2) + "\n").encode()
         file = QSaveFile(str(self.path))
         if not file.open(QIODevice.WriteOnly) or file.write(data) != len(data) or not file.commit():
-            raise OSError("단축키 설정을 저장하지 못했습니다.")
+            raise OSError(tr('단축키 설정을 저장하지 못했습니다.'))
 
     def apply(self, config, persist=True):
         if not isinstance(config, dict) or type(config.get("enabled")) is not bool:
-            raise ValueError("잘못된 단축키 설정입니다.")
+            raise ValueError(tr('잘못된 단축키 설정입니다.'))
         keys = config.get("keys", {})
         if not isinstance(keys, dict):
-            raise ValueError("잘못된 단축키 목록입니다.")
+            raise ValueError(tr('잘못된 단축키 목록입니다.'))
         normalized, wanted = {}, {}
         for action in ACTIONS:
             text = keys.get(action, "")
             if not isinstance(text, str):
-                raise ValueError("잘못된 키 조합입니다.")
+                raise ValueError(tr('잘못된 키 조합입니다.'))
             combo = parse_key(text)
             normalized[action] = QKeySequence(text).toString(QKeySequence.PortableText) if text else ""
             if combo:
                 if combo in wanted:
-                    raise ValueError("같은 키 조합을 두 기능에 지정할 수 없습니다.")
+                    raise ValueError(tr('같은 키 조합을 두 기능에 지정할 수 없습니다.'))
                 wanted[combo] = action
         clean = {"enabled": config["enabled"], "keys": normalized}
         if not clean["enabled"]:
@@ -109,7 +111,7 @@ class Hotkeys(QAbstractNativeEventFilter):
                 occupied = {v[0] for v in (*self.bindings.values(), *added.values())}
                 identifier = next(i for i in range(0x6000, 0xBFFF) if i not in occupied)
                 if not self.backend.register(identifier, combo):
-                    raise ValueError("이미 사용 중이거나 등록할 수 없는 조합입니다. 기존 설정을 유지합니다.")
+                    raise ValueError(tr('이미 사용 중이거나 등록할 수 없는 조합입니다. 기존 설정을 유지합니다.'))
                 added[combo] = (identifier, wanted[combo])
             if persist:
                 self.write(clean)
@@ -159,11 +161,10 @@ class HotkeyPage(QWidget):
         super().__init__()
         self.manager = manager
         layout = QVBoxLayout(self)
-        description = QLabel("입력칸을 클릭하고 Ctrl/Alt + 문자·숫자·F1–F11을 누르세요.\n"
-                             "이 설정 창에서 입력하는 동안 단축키 실행이 중지됩니다. 저장해야 적용됩니다.")
+        description = QLabel(tr('입력칸을 클릭하고 Ctrl/Alt + 문자·숫자·F1–F11을 누르세요.\n이 설정 창에서 입력하는 동안 단축키 실행이 중지됩니다. 저장해야 적용됩니다.'))
         description.setWordWrap(True)
         layout.addWidget(description)
-        self.enabled = QCheckBox("전역 단축키 사용")
+        self.enabled = QCheckBox(tr('전역 단축키 사용'))
         self.enabled.setChecked(manager.config["enabled"])
         layout.addWidget(self.enabled)
         form = QFormLayout()
@@ -175,18 +176,18 @@ class HotkeyPage(QWidget):
             self.edits[action] = edit
             row = QHBoxLayout()
             row.addWidget(edit)
-            clear = QPushButton("지우기")
+            clear = QPushButton(tr('지우기'))
             clear.clicked.connect(edit.clear)
             row.addWidget(clear)
             form.addRow(title, row)
         layout.addLayout(form)
-        self.status = QLabel(manager.error or "기본값: 모두 미지정")
+        self.status = QLabel(manager.error or tr('기본값: 모두 미지정'))
         self.status.setWordWrap(True)
         layout.addWidget(self.status)
         row = QHBoxLayout()
-        save = QPushButton("저장")
+        save = QPushButton(tr('저장'))
         save.clicked.connect(self.save)
-        reset = QPushButton("기본값 복원 · 모두 지우기")
+        reset = QPushButton(tr('기본값 복원 · 모두 지우기'))
         reset.clicked.connect(self.reset)
         row.addWidget(save)
         row.addWidget(reset)
@@ -197,7 +198,7 @@ class HotkeyPage(QWidget):
         self.enabled.setChecked(False)
         for edit in self.edits.values():
             edit.clear()
-        self.status.setText("저장을 누르면 모든 단축키가 해제됩니다.")
+        self.status.setText(tr('저장을 누르면 모든 단축키가 해제됩니다.'))
 
     def save(self):
         try:
@@ -207,4 +208,4 @@ class HotkeyPage(QWidget):
         except (OSError, ValueError) as exc:
             self.status.setText(str(exc))
         else:
-            self.status.setText("저장했습니다. 설정 화면을 벗어나면 적용됩니다.")
+            self.status.setText(tr('저장했습니다. 설정 화면을 벗어나면 적용됩니다.'))

@@ -14,6 +14,7 @@ from decimal import Decimal, InvalidOperation
 import httpx
 
 from .domain import QuotaLimit, retry_after_seconds
+from .i18n import tr
 from .oauth import CONFIGS, ProviderConfig, ProviderError, Transaction
 
 
@@ -174,28 +175,28 @@ def normalize_usage(provider: str, body: dict, now: datetime | None = None) -> S
                 ):
                     raise ValueError
                 moment = snapshot.fetched_at + timedelta(seconds=relative)
-                label += " · 초기화 시각 계산값"
+                label += tr(' · 초기화 시각 계산값')
             quota = QuotaLimit(key, str(label)[:100], value, moment, seconds)
             existing = next((q for q in snapshot.limits if q.key == key), None)
             if existing is None:
                 snapshot.limits.append(quota)
             elif (existing.used_percent, existing.reset_at_utc) != (value, moment):
-                snapshot.warnings.append("동일 한도의 응답 값이 달라 먼저 받은 유효한 요약 값을 표시합니다.")
+                snapshot.warnings.append(tr('동일 한도의 응답 값이 달라 먼저 받은 유효한 요약 값을 표시합니다.'))
         except (ValueError, TypeError, OverflowError, OSError):
-            snapshot.warnings.append("일부 제한 항목의 형식이 올바르지 않습니다.")
+            snapshot.warnings.append(tr('일부 제한 항목의 형식이 올바르지 않습니다.'))
 
     if provider == "claude":
         names = {
-            "five_hour": "5시간",
-            "seven_day": "7일",
-            "seven_day_opus": "Opus · 7일",
-            "seven_day_sonnet": "Sonnet · 7일",
-            "seven_day_oauth_apps": "OAuth 앱 · 7일",
+            "five_hour": tr('5시간'),
+            "seven_day": tr('7일'),
+            "seven_day_opus": tr('Opus · 7일'),
+            "seven_day_sonnet": tr('Sonnet · 7일'),
+            "seven_day_oauth_apps": tr('OAuth 앱 · 7일'),
         }
         for key, label in names.items():
             item = body.get(key)
             if item is not None and not isinstance(item, dict):
-                snapshot.warnings.append("일부 제한 항목의 형식이 올바르지 않습니다.")
+                snapshot.warnings.append(tr('일부 제한 항목의 형식이 올바르지 않습니다.'))
             elif item:
                 append(
                     key,
@@ -206,11 +207,11 @@ def normalize_usage(provider: str, body: dict, now: datetime | None = None) -> S
                 )
         items = body.get("limits") or []
         if not isinstance(items, list):
-            snapshot.warnings.append("제한 목록 형식이 올바르지 않습니다.")
+            snapshot.warnings.append(tr('제한 목록 형식이 올바르지 않습니다.'))
             items = []
         for i, item in enumerate(items[:100]):
             if not isinstance(item, dict):
-                snapshot.warnings.append("일부 제한 항목의 형식이 올바르지 않습니다.")
+                snapshot.warnings.append(tr('일부 제한 항목의 형식이 올바르지 않습니다.'))
                 continue
             scope = item.get("scope") or {}
             model = scope.get("model") if isinstance(scope, dict) else None
@@ -227,10 +228,10 @@ def normalize_usage(provider: str, body: dict, now: datetime | None = None) -> S
             elif isinstance(scope, dict) and scope.get("surface"):
                 key += f":surface:{scope['surface']}"
             label = model.get("display_name") or {
-                "session": "세션 제한",
-                "weekly_all": "전체 주간 제한",
-                "weekly_scoped": "모델별 주간 제한",
-            }.get(kind, "추가 제한")
+                "session": tr('세션 제한'),
+                "weekly_all": tr('전체 주간 제한'),
+                "weekly_scoped": tr('모델별 주간 제한'),
+            }.get(kind, tr('추가 제한'))
             if key in ("five_hour", "seven_day"):
                 label = names[key]
             size = 18000 if kind == "session" else 604800 if kind.startswith("weekly_") else None
@@ -238,23 +239,23 @@ def normalize_usage(provider: str, body: dict, now: datetime | None = None) -> S
         extra = body.get("extra_usage")
         if isinstance(extra, dict) and extra.get("is_enabled") is True:
             snapshot.extra_usage_enabled = True
-            append("extra", "추가 사용량", extra.get("utilization"))
-            snapshot.notes.append("추가 사용량 활성 · 금액 단위는 아직 표시하지 않습니다.")
+            append("extra", tr('추가 사용량'), extra.get("utilization"))
+            snapshot.notes.append(tr('추가 사용량 활성 · 금액 단위는 아직 표시하지 않습니다.'))
     else:
         rate = body.get("rate_limit") or {}
         if not isinstance(rate, dict):
             raise ProviderError("PARSE_ERROR")
-        for key, fallback in (("primary_window", "주 제한"), ("secondary_window", "보조 제한")):
+        for key, fallback in (("primary_window", tr('주 제한')), ("secondary_window", tr('보조 제한'))):
             item = rate.get(key)
             if item is None:
                 continue
             if not isinstance(item, dict):
-                snapshot.warnings.append("일부 제한 항목의 형식이 올바르지 않습니다.")
+                snapshot.warnings.append(tr('일부 제한 항목의 형식이 올바르지 않습니다.'))
                 continue
             size = item.get("limit_window_seconds")
             label = (
-                {18000: "5시간", 604800: "7일"}.get(
-                    size, f"{size}초 제한" if type(size) is int else fallback
+                {18000: tr('5시간'), 604800: tr('7일')}.get(
+                    size, tr('{p0}초 제한', p0=size) if type(size) is int else fallback
                 )
                 if type(size) in (int, type(None))
                 else fallback
@@ -270,15 +271,15 @@ def normalize_usage(provider: str, body: dict, now: datetime | None = None) -> S
         credits = body.get("credits")
         if isinstance(credits, dict):
             if credits.get("unlimited") is True:
-                snapshot.notes.append("크레딧: 무제한")
+                snapshot.notes.append(tr('크레딧: 무제한'))
             elif credits.get("balance") is not None:
                 try:
                     balance = Decimal(str(credits["balance"]))
                     if not balance.is_finite() or balance < 0:
                         raise ValueError
-                    snapshot.notes.append(f"남은 크레딧: {balance}")
+                    snapshot.notes.append(tr('남은 크레딧: {p0}', p0=balance))
                 except (ValueError, InvalidOperation):
-                    snapshot.warnings.append("크레딧 형식이 올바르지 않습니다.")
+                    snapshot.warnings.append(tr('크레딧 형식이 올바르지 않습니다.'))
     if not snapshot.limits and not snapshot.notes:
         raise ProviderError("PARSE_ERROR" if snapshot.warnings else "UNSUPPORTED")
     return snapshot

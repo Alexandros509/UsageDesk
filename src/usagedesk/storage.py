@@ -6,6 +6,7 @@ import tempfile
 from pathlib import Path
 from uuid import uuid4
 
+from .i18n import tr
 from .launcher import LauncherEntry
 
 MAX_BYTES = 1024 * 1024
@@ -23,33 +24,33 @@ def unique_fields(pairs):
     result = {}
     for key, value in pairs:
         if key in result:
-            raise ConfigError("중복 설정 필드가 있습니다.")
+            raise ConfigError(tr('중복 설정 필드가 있습니다.'))
         result[key] = value
     return result
 
 
 def parse_config(raw: bytes) -> list[LauncherEntry]:
     if len(raw) > MAX_BYTES:
-        raise ConfigError("설정 파일은 최대 1MiB입니다.")
+        raise ConfigError(tr('설정 파일은 최대 1MiB입니다.'))
     try:
         data = json.loads(raw.decode("utf-8-sig"), object_pairs_hook=unique_fields)
         if not isinstance(data, dict) or type(data.get("schema_version")) is not int:
-            raise ValueError("설정 버전이 올바르지 않습니다.")
+            raise ValueError(tr('설정 버전이 올바르지 않습니다.'))
         if data["schema_version"] > 1:
-            raise FutureSchema("더 새로운 앱의 설정입니다. 최신 앱으로 열어 주세요.")
+            raise FutureSchema(tr('더 새로운 앱의 설정입니다. 최신 앱으로 열어 주세요.'))
         if data["schema_version"] != 1 or set(data) != {"schema_version", "programs"}:
-            raise ValueError("설정 구조가 올바르지 않습니다.")
+            raise ValueError(tr('설정 구조가 올바르지 않습니다.'))
         if not isinstance(data["programs"], list) or len(data["programs"]) > 100:
-            raise ValueError("프로그램 목록은 최대 100개입니다.")
+            raise ValueError(tr('프로그램 목록은 최대 100개입니다.'))
         entries = [LauncherEntry.from_dict(item) for item in data["programs"]]
         if len({entry.id for entry in entries}) != len(entries):
-            raise ValueError("중복 프로그램 ID가 있습니다.")
+            raise ValueError(tr('중복 프로그램 ID가 있습니다.'))
         return entries
     except FutureSchema:
         raise
     except (ValueError, TypeError, AttributeError, KeyError, RecursionError) as exc:
         raise ConfigError(
-            "설정이 손상되었거나 지원하지 않는 필드가 있습니다. 원본을 보존했습니다."
+            tr('설정이 손상되었거나 지원하지 않는 필드가 있습니다. 원본을 보존했습니다.')
         ) from exc
 
 
@@ -71,7 +72,7 @@ def bounded_read(path: Path) -> bytes:
     with path.open("rb") as stream:
         result = stream.read(MAX_BYTES + 1)
     if len(result) > MAX_BYTES:
-        raise ConfigError("설정 파일은 최대 1MiB입니다.")
+        raise ConfigError(tr('설정 파일은 최대 1MiB입니다.'))
     return result
 
 
@@ -95,7 +96,7 @@ class ConfigStore:
 
     def save(self, entries: list[LauncherEntry]) -> None:
         if self.blocked:
-            raise ConfigError("설정 복구 전에는 변경할 수 없습니다.")
+            raise ConfigError(tr('설정 복구 전에는 변경할 수 없습니다.'))
         content = json.dumps(
             {"schema_version": 1, "programs": [e.to_dict() for e in entries]},
             ensure_ascii=False,
@@ -135,7 +136,7 @@ class ConfigStore:
 
     def recover(self) -> list[LauncherEntry]:
         if not self.can_recover():
-            raise ConfigError("복구 가능한 백업이 없습니다. 원본은 변경하지 않았습니다.")
+            raise ConfigError(tr('복구 가능한 백업이 없습니다. 원본은 변경하지 않았습니다.'))
         raw = bounded_read(self.backup)
         entries = parse_config(raw)
         if self.path.exists():

@@ -176,7 +176,8 @@ def test_bar_updates_stale_data_and_clears_on_disconnect(bar):
     ])
     pane.render()
     assert any(item[2] == "0%" for item in widget.items)
-    assert any(item[2] == "Claude !" for item in widget.items)
+    assert any(item[2] == "Claude" for item in widget.items)
+    assert not any(" !" in item[2] for item in widget.items)
     assert "이전 데이터" in next(item[5] for item in widget.items if item[3])
     pane.disconnect("claude")
     assert not any(item[3] for item in widget.items)
@@ -541,3 +542,38 @@ def test_unavailable_tray_settings_preserve_existing_placement(bar, monkeypatch)
     monkeypatch.setattr(QMessageBox, "warning", lambda *args: None)
     widget.settings_dialog()
     assert widget.options == before and widget.store.load() == before
+
+
+def test_hide_unselected_services_persists_and_keeps_selected_provider(bar, tmp_path):
+    widget, pane, _, _ = bar
+    pane.snapshots['claude'] = Snapshot(datetime.now(UTC), [QuotaLimit('five_hour', '5h', 25)])
+    widget.options = replace(widget.options, mode='custom', selected=(), hide_unselected=True)
+    DisplayStore(tmp_path).save(widget.options)
+    assert DisplayStore(tmp_path).load().hide_unselected
+    widget.refresh()
+    assert not [item for item in widget.items if item[1] == 'provider']
+    assert any(item[1] == 'settings' for item in widget.items)
+    widget.options = replace(widget.options, selected=('claude/five_hour',))
+    widget.refresh()
+    assert [item[4] for item in widget.items if item[1] == 'provider'] == ['claude']
+    widget.options = replace(widget.options, selected=('codex/five_hour',))
+    widget.refresh()
+    assert [item[4] for item in widget.items if item[1] == 'provider'] == ['codex']
+    widget.options = replace(widget.options, selected=(), hide_unselected=False)
+    widget.refresh()
+    assert len([item for item in widget.items if item[1] == 'provider']) == 3
+    widget.options = replace(widget.options, mode='smart', hide_unselected=True)
+    widget.refresh()
+    assert len([item for item in widget.items if item[1] == 'provider']) == 3
+    dialog = DisplayDialog(widget, widget.options, pane.snapshots)
+    assert dialog.value().hide_unselected
+    dialog.deleteLater()
+
+
+def test_selected_service_survives_temporarily_missing_usage(bar):
+    widget, pane, _, _ = bar
+    pane.snapshots['claude'] = Snapshot(datetime.now(UTC), [QuotaLimit('five_hour', '5h', None)])
+    widget.options = replace(widget.options, mode='custom', selected=('claude/five_hour',),
+                             hide_unselected=True)
+    widget.refresh()
+    assert [item[4] for item in widget.items if item[1] == 'provider'] == ['claude']

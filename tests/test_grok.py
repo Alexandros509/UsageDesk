@@ -31,7 +31,7 @@ def test_weekly_quota_is_account_percent_not_session_tokens():
                                   {"config": {"creditUsagePercent": None}},
                                   {"config": {"monthlyLimit": {}, "used": {}}}])
 def test_missing_quota_never_becomes_zero(body):
-    with pytest.raises(ProviderError, match="UNSUPPORTED"):
+    with pytest.raises(ProviderError, match="UNSUPPORTED" if (body.get("config") or {}).get("monthlyLimit") == {} else "USAGE_UNAVAILABLE"):
         normalize_grok(body)
 
 

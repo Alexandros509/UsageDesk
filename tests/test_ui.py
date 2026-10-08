@@ -219,3 +219,27 @@ def test_background_settings_does_not_block_global_hotkeys(window, monkeypatch):
     assert window.editing_hotkeys()
     window.tabs.setCurrentIndex(0)
     assert not window.editing_hotkeys()
+
+
+def test_settings_entry_points_use_one_window_and_save_display(window, app):
+    from PySide6.QtWidgets import QDialog
+    window.bar.settings_dialog()
+    assert window.tabs.currentWidget() is window.display_scroll
+    assert window.display_editor.isVisible()
+    assert not any(isinstance(w, QDialog) and w.isVisible() and w.isWindow()
+                   for w in app.topLevelWidgets())
+    editor = window.display_editor
+    editor.mode.setCurrentIndex(editor.mode.findData('custom'))
+    editor.hide_unselected.setChecked(True)
+    editor.validate()
+    assert window.bar.options.hide_unselected
+    assert not [item for item in window.bar.items if item[1] == 'provider']
+    assert window.display_editor is editor and editor.isVisible()
+    settings = next(a.menu() for a in window.tray_menu.actions() if a.text() == '설정')
+    assert [a.text() for a in settings.actions()] == ['바 표시', '프로그램 관리', '단축키 설정', '일반 설정']
+    for action, index in zip(settings.actions(), [4, 1, 2, 3], strict=True):
+        action.trigger()
+        assert window.tabs.currentIndex() == index
+    actions = window.tray_menu.actions()
+    index = next(i for i,a in enumerate(actions) if a.text() == '설정')
+    assert actions[index-1].isSeparator()

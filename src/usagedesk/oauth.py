@@ -11,6 +11,8 @@ from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import parse_qs, urlencode, urlsplit
 
+from .i18n import tr
+
 
 class ProviderError(Exception):
     """Only fixed, non-sensitive error codes may cross the worker/UI boundary."""
@@ -48,7 +50,7 @@ CONFIGS = {
     ),
     "codex": ProviderConfig(
         "codex",
-        "Codex · ChatGPT 계정",
+        tr('Codex · ChatGPT 계정'),
         "https://auth.openai.com/oauth/authorize",
         "https://auth.openai.com/oauth/token",
         "https://chatgpt.com/backend-api/wham/usage",

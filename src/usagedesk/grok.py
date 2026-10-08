@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from .domain import QuotaLimit
+from .i18n import tr
 from .oauth import ProviderError
 from .providers import Snapshot, Tokens, Transport
 
@@ -25,7 +26,7 @@ def normalize_grok(body, now=None):
         raise ProviderError("PARSE_ERROR")
     config = body.get("config")
     if config is None:
-        raise ProviderError("UNSUPPORTED")
+        raise ProviderError("USAGE_UNAVAILABLE")
     if not isinstance(config, dict):
         raise ProviderError("PARSE_ERROR")
     snapshot = Snapshot(now or datetime.now(UTC))
@@ -34,7 +35,7 @@ def normalize_grok(body, now=None):
     if legacy:
         limit, used = config.get("monthlyLimit"), config.get("used")
         if not isinstance(limit, dict) or not isinstance(used, dict):
-            raise ProviderError("UNSUPPORTED")
+            raise ProviderError("USAGE_UNAVAILABLE")
 
         def cents(item):
             value = item.get("val", 0)  # An explicitly empty proto Cent represents zero.
@@ -56,10 +57,10 @@ def normalize_grok(body, now=None):
     period = period or {}
     weekly = period.get("type") == "USAGE_PERIOD_TYPE_WEEKLY"
     monthly = period.get("type") == "USAGE_PERIOD_TYPE_MONTHLY" or legacy
-    title = "주간 한도" if weekly else "월간 한도" if monthly else "계정 한도"
+    title = tr('주간 한도') if weekly else tr('월간 한도') if monthly else tr('계정 한도')
     if config.get("isUnifiedBillingUser") is True:
-        title = "통합 " + title
-        snapshot.notes.append("Grok 제품들이 공유하는 계정 한도입니다. Build 전용 토큰 수가 아닙니다.")
+        title = tr('통합 ') + title
+        snapshot.notes.append(tr('Grok 제품들이 공유하는 계정 한도입니다. Build 전용 토큰 수가 아닙니다.'))
     reset = period.get("end") or config.get("billingPeriodEnd")
     moment = None
     if reset is not None:
@@ -68,11 +69,11 @@ def normalize_grok(body, now=None):
             if moment.utcoffset() is None:
                 raise ValueError
         except (AttributeError, TypeError, ValueError):
-            snapshot.warnings.append("초기화 시각 형식이 올바르지 않아 시각을 표시하지 않습니다.")
+            snapshot.warnings.append(tr('초기화 시각 형식이 올바르지 않아 시각을 표시하지 않습니다.'))
             moment = None
     snapshot.limits.append(QuotaLimit("account", title, percent, moment,
                                       604800 if weekly else None))
-    snapshot.notes.append("Grok CLI 인증 사용 · 인증 만료 시 CLI 로그인 후 다시 연결하세요.")
+    snapshot.notes.append(tr('Grok CLI 인증 사용 · 인증 만료 시 CLI 로그인 후 다시 연결하세요.'))
     return snapshot
 
 

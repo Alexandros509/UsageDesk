@@ -169,3 +169,38 @@ def test_live_controller_shows_snapshot_preserves_stale_and_logout(tmp_path, mon
         pane.pool.waitForDone()
         pane.deleteLater()
         app.processEvents()
+
+
+def test_grok_missing_usage_keeps_previous_value_and_recovers(tmp_path, monkeypatch):
+    app = QApplication.instance() or QApplication([])
+    pane = UsagePane(tmp_path, autoload=False)
+    session = pane.sessions['grok']
+    session.tokens = True
+    pane.policies['grok'].reconnect()
+    previous = Snapshot(datetime.now(UTC), [QuotaLimit('account', '주간 한도', 100)])
+    pane.snapshots['grok'] = previous
+    def unavailable(_):
+        raise ProviderError('USAGE_UNAVAILABLE')
+    monkeypatch.setattr(session, 'fetch', unavailable)
+    try:
+        pane.refresh('grok', True)
+        pump(app, pane)
+        assert pane.snapshots['grok'] is previous
+        assert '현재 사용량 값이 없습니다' in pane.cards['grok'][0].text()
+        assert '다음 자동 조회' in pane.cards['grok'][0].text()
+        assert pane.cards['grok'][2][0].isEnabled()
+        pane.policies['grok'].last_start -= 11
+        pane.render()
+        assert pane.cards['grok'][2][1].isEnabled()
+        current = Snapshot(datetime.now(UTC), [QuotaLimit('account', '주간 한도', 1)])
+        monkeypatch.setattr(session, 'fetch', lambda _: current)
+        pane.refresh('grok', True)
+        pump(app, pane)
+        assert pane.snapshots['grok'] is current
+        assert 'grok' not in pane.errors
+        assert '마지막 성공 조회' in pane.cards['grok'][0].text()
+    finally:
+        pane.shutdown()
+        pane.pool.waitForDone()
+        pane.deleteLater()
+        app.processEvents()

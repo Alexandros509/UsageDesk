@@ -8,6 +8,8 @@ from ctypes import wintypes
 from PySide6.QtCore import QRect, QTimer
 from PySide6.QtWidgets import QApplication
 
+from .i18n import tr
+
 
 class AppBarData(ctypes.Structure):
     _fields_ = [("cbSize", wintypes.DWORD), ("hWnd", wintypes.HWND),
@@ -116,7 +118,7 @@ class TopDock:
                 QTimer.singleShot(0, self.widget.refresh)
         except (OSError, AttributeError):
             self.remove()
-            self.widget.setToolTip("고정 바 작업 영역 확보 실패 · 표시 설정에서 떠 있는 바로 전환하세요.")
+            self.widget.setToolTip(tr('고정 바 작업 영역 확보 실패 · 표시 설정에서 떠 있는 바로 전환하세요.'))
         finally:
             self.busy = False
 
