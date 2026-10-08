@@ -163,6 +163,8 @@ Do not attach tokens, callback URLs, authentication files or screenshots contain
 
 ## Development and verification
 
+See the [release runbook](RUNBOOK.en.md) for preparation, publication review, GitHub Releases and rollback. A [Korean version](RUNBOOK.md) is also available.
+
 ```powershell
 .\scripts\test.ps1
 .\build.ps1

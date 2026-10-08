@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def public_files():
     names = (".gitignore", ".gitattributes", "README.md", "README.en.md", "LICENSE", "THIRD_PARTY_NOTICES.md",
-             "DISTRIBUTION.md", "SECURITY.md", "pyproject.toml", "uv.lock", "setup.ps1",
+             "DISTRIBUTION.md", "RUNBOOK.md", "RUNBOOK.en.md", "SECURITY.md", "pyproject.toml", "uv.lock", "setup.ps1",
              "build.ps1", "run.cmd")
     files = {ROOT / name for name in names}
     for pattern in ("src/**/*.py", "src/**/*.svg", "src/**/*.png", "src/**/*.ico",

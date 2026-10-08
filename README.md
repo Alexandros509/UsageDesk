@@ -163,6 +163,8 @@ Grok 응답에 현재 사용량 값이 없으면 마지막 성공 데이터를 �
 
 ## 개발 및 검증
 
+배포 준비부터 공개 검수·Release 게시·롤백까지는 [배포 런북](RUNBOOK.md)을 참고하세요. [English](RUNBOOK.en.md) 버전도 제공합니다.
+
 ```powershell
 .\scripts\test.ps1
 .\build.ps1
