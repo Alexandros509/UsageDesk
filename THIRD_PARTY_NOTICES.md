@@ -49,8 +49,10 @@ components not compiled into this Windows bundle.
 
 The bundle dynamically links QtCore, QtGui, QtWidgets, QtNetwork and QtSvg. It
 excludes unused Qt image/platform/TLS plugins, translations and software OpenGL.
-The CPython runtime is 3.13.15 (python-build-standalone build 20260901); its
-redistribution notices, including Microsoft runtime terms, are preserved.
+The CPython runtime is 3.13.15. Starting with 0.1.0a19, local Windows builds use
+the signed Python Software Foundation distribution. Earlier builds used
+python-build-standalone build 20260901. Redistribution notices, including
+Microsoft runtime terms and conservative notices from earlier builds, are preserved.
 PyInstaller's license includes an exception for generated applications. Windows
 fonts used for screenshots are not bundled. Pillow is only an icon-authoring tool.
 

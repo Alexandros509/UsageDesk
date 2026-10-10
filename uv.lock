@@ -292,7 +292,7 @@ wheels = [
 
 [[package]]
 name = "usagedesk"
-version = "0.1.0a18"
+version = "0.1.0a19"
 source = { editable = "." }
 dependencies = [
     { name = "httpx" },

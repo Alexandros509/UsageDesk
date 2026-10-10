@@ -1,6 +1,6 @@
 [project]
 name = "usagedesk"
-version = "0.1.0a18"
+version = "0.1.0a19"
 description = "Independent Windows tray launcher and usage monitor foundation"
 requires-python = ">=3.13,<3.14"
 dependencies = ["PySide6-Essentials>=6.8,<7", "httpx>=0.28,<1", "pywin32>=310; sys_platform == 'win32'"]

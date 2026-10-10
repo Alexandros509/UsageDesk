@@ -169,6 +169,34 @@ def test_partial_unknown_scoped_and_other_service_limits_do_not_override(provide
     assert "소진" not in quota_caption(quota, options, provider=provider, snapshot=snapshot)
 
 
+@pytest.mark.parametrize('mode,expected', [('remaining', '0%'), ('used', '100%')])
+@pytest.mark.parametrize('reverse', [False, True])
+def test_codex_weekly_exhaustion_uses_actual_window_duration(bar, mode, expected, reverse):
+    widget, pane, _, _ = bar
+    five = {'used_percent': 0, 'limit_window_seconds': 18000}
+    weekly = {'used_percent': 100, 'limit_window_seconds': 604800,
+              'reset_at': int((datetime.now(UTC) + timedelta(days=2)).timestamp())}
+    snapshot = normalize_usage('codex', {'rate_limit': {
+        'primary_window': weekly if reverse else five,
+        'secondary_window': five if reverse else weekly}})
+    quota = next(q for q in snapshot.limits if q.window_seconds == 18000)
+    pane.snapshots['codex'] = snapshot
+    widget.options = replace(widget.options, mode='custom', selected=('codex/' + quota.key,),
+                             quota_display=mode)
+    pane.render()
+    item = next(i for i in widget.items if i[4] == 'codex' and i[3])
+    assert item[2] == expected
+    assert '주간 한도 소진' in quota_caption(quota, widget.options, provider='codex', snapshot=snapshot)
+    assert '5시간 한도 자체: 사용 0% · 남음 100%' in widget.tooltip_at(item[0].center())[0]
+    assert '주간 초기화 예정' in widget.tooltip_at(item[0].center())[0]
+    assert quota.remaining_percent == 100
+    snapshot.limits = [replace(q, used_percent=20) if q.window_seconds == 604800 else q
+                       for q in snapshot.limits]
+    pane.render()
+    restored = next(i for i in widget.items if i[4] == 'codex' and i[3])
+    assert restored[2] == ('100%' if mode == 'remaining' else '0%')
+
+
 def test_bar_updates_stale_data_and_clears_on_disconnect(bar):
     widget, pane, _, _ = bar
     pane.snapshots["claude"] = Snapshot(datetime.now(UTC) - timedelta(minutes=7), [

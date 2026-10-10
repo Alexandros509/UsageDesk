@@ -10,7 +10,7 @@
 
 UsageDesk is a Windows desktop utility that shows Claude, Codex and Grok usage and reset times, and opens programs, HTML pages and documents from the same bar.
 
-Windows 11 · Python 3.13 · PySide6 · **0.1.0a18 / Alpha** · [MIT](LICENSE)
+Windows 11 · Python 3.13 · PySide6 · **0.1.0a19 / Alpha** · [MIT](LICENSE)
 
 ![UsageDesk toolbar in dark mode](docs/images/toolbar-dark-en.png)
 
@@ -74,6 +74,8 @@ Download and extract the repository, or clone it, then open PowerShell in the pr
 
 `setup.ps1` installs Python 3.13 and the dependencies locally using `uv.lock`. After setup, you can also double-click `run.cmd`.
 
+If Smart App Control blocks the automatically installed interpreter, keep the security policy enabled and install signed Python 3.13 from python.org, then run `./setup.ps1 -Python 'path to the official python.exe'`. If `.python/official-3.13.15/python.exe` exists in the project, setup prefers it.
+
 Click a gauge to open the details window. Selecting tray-only mode under display settings → placement hides both the bar and the details window, and persists across restarts. Choose `Show usage bar` from the tray menu to restore the previous placement and position, including top/bottom docking. Closing the details window returns to the bar, or leaves the app in the tray when tray-only mode is enabled. To exit completely, choose `⋯ → Exit` on the bar or `Exit` in the tray menu.
 
 ```powershell
@@ -120,7 +122,7 @@ These integrations are experimental and depend on each service's authentication 
 - If the server supplies no reset time, the bar shows `Time unavailable`. After the reported time passes, it shows `Checking reset`.
 - Usage is normally fetched about every three minutes. Manual refresh also respects server wait periods. Fetch failures and stale data are explained in the hover tooltip and Usage tab; service names do not show an exclamation mark.
 
-**What if Claude's weekly quota is exhausted but its five-hour quota still has capacity?**
+**What if Claude or Codex has exhausted its weekly quota but still has five-hour capacity?**
 
 While the account-wide weekly quota is exhausted, the five-hour gauge is adjusted to **0% subscription quota remaining / 100% exhausted**, with `5h │ Weekly quota exhausted`. The tooltip retains the original server value and explains the adjustment. Normal display resumes when a response reports available weekly quota. Extra-usage activation is indicated separately.
 
@@ -179,7 +181,7 @@ See the [release runbook](RUNBOOK.en.md) for preparation, publication review, Gi
 
 Current validation: **280 automated tests** (including 53 bar tests), Ruff and Windows EXE startup/shutdown checks. Coverage includes switching bar lengths back and forth, preserving reset-time display, top/bottom docking and restoration from tray mode. This does not guarantee operation across every account, plan or PC environment.
 
-Build output is written to `dist\0.1.0a18\UsageDesk\`. **Move the entire folder, not just the EXE.** Python/Qt notices and library replacement instructions are included. Run `python scripts/package_release.py` to produce binary and corresponding source ZIPs with checksums. This is an unsigned alpha build.
+Build output is written to `dist\0.1.0a19\UsageDesk\`. **Move the entire folder, not just the EXE.** Python/Qt notices and library replacement instructions are included. Run `python scripts/package_release.py` to produce binary and corresponding source ZIPs with checksums. This is an unsigned alpha build.
 
 Regenerate README screenshots with the following command. It uses only an isolated directory and synthetic data:
 

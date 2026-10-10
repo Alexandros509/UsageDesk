@@ -177,8 +177,15 @@ def reset_countdown(quota, now=None):
 
 
 def exhausted_weekly(quota, provider, snapshot):
-    """Account-wide Claude weekly exhaustion limits its five-hour subscription pool."""
-    if provider != "claude" or quota.key != "five_hour" or snapshot is None:
+    """Account-wide weekly exhaustion limits the five-hour subscription pool."""
+    if snapshot is None:
+        return None
+    if provider == "codex":
+        if quota.window_seconds != 18000 or quota.used_percent is None:
+            return None
+        return next((q for q in snapshot.limits if q.window_seconds == 604800
+                     and q.used_percent is not None and q.used_percent >= 100), None)
+    if provider != "claude" or quota.key != "five_hour":
         return None
     return next((q for q in snapshot.limits if q.key == "seven_day"
                  and q.used_percent is not None and q.used_percent >= 100), None)
