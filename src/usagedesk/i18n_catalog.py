@@ -596,4 +596,14 @@ EN = {'UsageDesk 사용량 바': 'UsageDesk usage bar',
  'UsageDesk에서 실행하여 추적 가능한 프로세스만 표시합니다. 파일별 CPU는 제공되지 않을 수 있습니다.': 'Only processes launched and '
                                                                   'tracked by UsageDesk are '
                                                                   'measured. Per-file CPU may be '
-                                                                  'unavailable.'}
+                                                                  'unavailable.',
+ '웹 링크': 'Web link',
+ '종류': 'Type',
+ '링크 주소': 'Link URL',
+ '기본 브라우저로 열기': 'Open in default browser',
+ '웹 링크는 호스트가 있는 http:// 또는 https:// 주소로 입력하세요. 공백·제어 문자·사용자 인증정보는 지원하지 않습니다.':
+     'Enter an http:// or https:// URL with a host. Spaces, control characters and embedded credentials are not supported.',
+ '웹 링크에는 작업 폴더·추가 인수·콘솔 모드를 지정할 수 없습니다.':
+     'Web links do not accept a working directory, extra arguments or console modes.',
+ '웹 링크는 기본 브라우저로 엽니다. 등록만으로 열리지 않으며, 링크별 CPU와 실행 상태는 추적하지 않습니다.':
+     'Web links open in your default browser. Saving does not open them. Per-link CPU and running state cannot be tracked.'}

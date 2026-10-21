@@ -64,6 +64,7 @@ $releaseExe = Join-Path $releaseDir 'UsageDesk\UsageDesk.exe'
 - Switch bar widths back and forth; confirm top/bottom/floating placement survives tray mode and restart.
 - Check quota selection, hiding entire services, used/remaining percentages, reset times and hover details, long program names and the `+N` menu.
 - Register and open sample files; check hotkey assignment, conflicts and clearing. Do not use files containing personal information.
+- Switch Type between File/Web link in the Add/Edit dialog and verify input preservation and saving. Confirm a local test URL opens from the bar/tray in the default browser and that links have no working-directory or console controls. Open settings containing web links with version 0.1.0a20 or later.
 - If live account verification is needed, use a separately authorized account. Confirm missing values are not treated as 0% usage, previous data is labeled, and a valid response restores normal display. Keep test credentials out of distribution files.
 - Exit fully with `⋯ → Exit`, then verify restart and second-instance handoff. The window's X button is not a full exit.
 

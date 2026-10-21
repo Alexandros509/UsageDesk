@@ -10,7 +10,7 @@
 
 UsageDesk is a Windows desktop utility that shows Claude, Codex and Grok usage and reset times, and opens programs, HTML pages and documents from the same bar.
 
-Windows 11 · Python 3.13 · PySide6 · **0.1.0a19 / Alpha** · [MIT](LICENSE)
+Windows 11 · Python 3.13 · PySide6 · **0.1.0a20 / Alpha** · [MIT](LICENSE)
 
 ![UsageDesk toolbar in dark mode](docs/images/toolbar-dark-en.png)
 
@@ -145,9 +145,18 @@ Open the **Hotkey settings** tab in the details window or select it from the tra
 
 </details>
 
-### Registering programs and files
+### Registering programs, files and web links
 
 Choose a file under `My programs → Add`, or drag it onto the window. Registration alone does not run it. Choose which entries appear on the bar under `Bar display → Programs on bar`.
+
+For a website, choose **Type → Web link** in the Add/Edit dialog, then enter a name and an `https://...` or `http://...` URL. No working directory or arguments are required. Open saved links from the bar, tray or program list in your default browser. Per-link running state and CPU cannot be tracked. URLs are stored in local settings alongside file paths.
+
+<details>
+<summary>View the web link dialog</summary>
+
+![Register a web link](docs/images/web-link-en.png)
+
+</details>
 
 - Executables: `.exe`, `.com`, `.cmd`, `.bat`
 - Scripts and tools: `.py`, `.pyw`, `.ps1`, `.jar`, `.vbs`, `.vbe`, `.js`, `.jse`, `.wsf`, `.wsh`, `.msc`, `.hta`, `.ahk`
@@ -179,9 +188,9 @@ See the [release runbook](RUNBOOK.en.md) for preparation, publication review, Gi
 .\build.ps1
 ```
 
-Current validation: **280 automated tests** (including 53 bar tests), Ruff and Windows EXE startup/shutdown checks. Coverage includes switching bar lengths back and forth, preserving reset-time display, top/bottom docking and restoration from tray mode. This does not guarantee operation across every account, plan or PC environment.
+Current validation: **323 automated tests**, Ruff and Windows EXE startup/shutdown checks. Coverage includes switching bar lengths back and forth, preserving reset-time display, top/bottom docking, restoration from tray mode, and registering, editing and opening web links in the default browser. This does not guarantee operation across every account, plan or PC environment.
 
-Build output is written to `dist\0.1.0a19\UsageDesk\`. **Move the entire folder, not just the EXE.** Python/Qt notices and library replacement instructions are included. Run `python scripts/package_release.py` to produce binary and corresponding source ZIPs with checksums. This is an unsigned alpha build.
+Build output is written to `dist\0.1.0a20\UsageDesk\`. **Move the entire folder, not just the EXE.** Python/Qt notices and library replacement instructions are included. Run `python scripts/package_release.py` to produce binary and corresponding source ZIPs with checksums. This is an unsigned alpha build.
 
 Regenerate README screenshots with the following command. It uses only an isolated directory and synthetic data:
 

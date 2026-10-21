@@ -9,6 +9,7 @@ import stat
 import subprocess
 from dataclasses import asdict, dataclass, field
 from pathlib import Path, PureWindowsPath
+from urllib.parse import urlsplit
 from uuid import UUID, uuid4
 
 from .i18n import tr
@@ -35,7 +36,26 @@ FILE_FILTER = (tr('프로그램·문서·미디어 (')
 
 
 def uses_file_association(path):
-    return PureWindowsPath(path).suffix.lower() not in EXECUTABLE_EXTENSIONS
+    return is_web_link(path) or PureWindowsPath(path).suffix.lower() not in EXECUTABLE_EXTENSIONS
+
+
+def is_web_link(value):
+    return isinstance(value, str) and bool(re.match(r"^https?:", value, re.IGNORECASE))
+
+
+def validate_web_link(value):
+    message = tr('웹 링크는 호스트가 있는 http:// 또는 https:// 주소로 입력하세요. 공백·제어 문자·사용자 인증정보는 지원하지 않습니다.')
+    if (not isinstance(value, str) or len(value) > 8192
+            or any(c.isspace() or ord(c) < 32 or ord(c) == 127 or c in '\\"<>' for c in value)):
+        raise ValueError(message)
+    try:
+        parts = urlsplit(value)
+        if (parts.scheme.lower() not in {'http', 'https'} or not parts.hostname
+                or parts.username is not None or parts.password is not None):
+            raise ValueError(message)
+        _ = parts.port  # Reject malformed or out-of-range ports.
+    except ValueError:
+        raise ValueError(message) from None
 
 
 def safe_text(value: str, label: str, maximum: int = 1024, *, shell=True) -> str:
@@ -84,8 +104,14 @@ class LauncherEntry:
         if not isinstance(self.script_path, str):
             raise ValueError(tr('실행 파일 경로를 확인하세요.'))
         suffix = PureWindowsPath(self.script_path).suffix.lower()
-        local_path(self.script_path, tr('파일'), shell=suffix in BATCH)
-        local_path(self.working_directory, tr('작업 폴더'), shell=suffix in BATCH)
+        web = is_web_link(self.script_path)
+        if web:
+            validate_web_link(self.script_path)
+            if self.working_directory != '' or self.arguments or self.console_mode != 'close_on_exit':
+                raise ValueError(tr('웹 링크에는 작업 폴더·추가 인수·콘솔 모드를 지정할 수 없습니다.'))
+        else:
+            local_path(self.script_path, tr('파일'), shell=suffix in BATCH)
+            local_path(self.working_directory, tr('작업 폴더'), shell=suffix in BATCH)
         if not isinstance(self.console_mode, str) or self.console_mode not in MODES:
             raise ValueError(tr('콘솔 모드가 올바르지 않습니다.'))
         if self.console_mode == "keep_open" and suffix not in BATCH | {".ps1"}:
@@ -122,6 +148,8 @@ def validate_files(entry: LauncherEntry) -> None:
     entry.validate()
     if os.name != "nt":
         raise OSError(tr('Windows에서만 실행할 수 있습니다.'))
+    if is_web_link(entry.script_path):
+        return
     kernel = ctypes.WinDLL("kernel32", use_last_error=True)
     kernel.GetDriveTypeW.argtypes = [ctypes.c_wchar_p]
     kernel.GetDriveTypeW.restype = ctypes.c_uint
@@ -257,6 +285,11 @@ class Launcher:
 
     def start(self, entry: LauncherEntry) -> int | None:
         validate_files(entry)
+        if is_web_link(entry.script_path):
+            # URLs go directly to the Windows URL handler, never a command shell.
+            os.startfile(entry.script_path, 'open')
+            self.untracked.add(entry.id)
+            return None
         active = [p for p in self.processes.get(entry.id, []) if p.poll() is None]
         if active and not entry.allow_multiple:
             raise ValueError(tr('이 항목의 실행 프로세스를 이미 추적 중입니다.'))
@@ -288,11 +321,14 @@ class Launcher:
             stderr=subprocess.DEVNULL if entry.console_mode == "hidden" else None,
         )
         self.processes[entry.id] = [*active, proc]
+        self.untracked.discard(entry.id)
         return proc.pid
 
     def poll(self) -> dict[str, str]:
         statuses = dict.fromkeys(self.untracked, tr('파일 연결로 실행 요청 완료 · 프로세스 추적 불가'))
         for entry_id, processes in self.processes.items():
+            if entry_id in self.untracked:
+                continue
             codes = [proc.poll() for proc in processes]
             running = sum(code is None for code in codes)
             if running:

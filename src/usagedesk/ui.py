@@ -43,7 +43,9 @@ from .launcher import (
     MODES,
     Launcher,
     LauncherEntry,
+    is_web_link,
     uses_file_association,
+    validate_web_link,
 )
 from .storage import ConfigError, ConfigStore
 from .usage_ui import UsagePane
@@ -56,10 +58,18 @@ class EntryDialog(QDialog):
         self.resize(620, 470)
         self.entry = entry
         self.result_entry = None
-        self.name = QLineEdit(entry.name if entry else Path(path).stem)
-        self.script = QLineEdit(entry.script_path if entry else path)
+        target = entry.script_path if entry else path
+        web = is_web_link(target)
+        self.kind = QComboBox()
+        self.kind.addItem(tr('파일'), 'file')
+        self.kind.addItem(tr('웹 링크'), 'web')
+        self.kind.setCurrentIndex(1 if web else 0)
+        self.name = QLineEdit(entry.name if entry else '' if web else Path(path).stem)
+        self.script = QLineEdit('' if web else target)
+        self.url = QLineEdit(target if web else '')
+        self.url.setPlaceholderText('https://example.com')
         self.cwd = QLineEdit(
-            entry.working_directory if entry else str(Path(path).parent) if path else ""
+            entry.working_directory if entry else str(Path(path).parent) if path and not web else ""
         )
         self.args = QTextEdit()
         self.args.setPlainText("\n".join(entry.arguments) if entry else "")
@@ -75,20 +85,25 @@ class EntryDialog(QDialog):
         self.favorite.setChecked(entry.favorite if entry else False)
         self.multiple.setChecked(entry.allow_multiple if entry else False)
         layout = QVBoxLayout(self)
-        form = QFormLayout()
+        form = self.form = QFormLayout()
+        form.addRow(tr('종류'), self.kind)
         form.addRow(tr('이름'), self.name)
-        form.addRow(tr('프로그램 / 파일'), self.path_row(self.script, self.choose_script))
-        form.addRow(tr('작업 폴더'), self.path_row(self.cwd, self.choose_directory))
+        self.script_row = self.path_row(self.script, self.choose_script)
+        self.cwd_row = self.path_row(self.cwd, self.choose_directory)
+        form.addRow(tr('프로그램 / 파일'), self.script_row)
+        form.addRow(tr('링크 주소'), self.url)
+        form.addRow(tr('작업 폴더'), self.cwd_row)
         form.addRow(tr('인수'), self.args)
         form.addRow(tr('콘솔'), self.mode)
         form.addRow(self.favorite)
         form.addRow(self.multiple)
         layout.addLayout(form)
-        note = QLabel(
+        self.note = QLabel(
             tr('Python은 작업 폴더의 .venv를 우선 사용합니다. 실행기가 설치되어 있어야 합니다.\nHTML·문서·미디어는 Windows 기본 앱으로 엽니다. 콘솔 유지는 CMD·BAT·PowerShell에서 지원합니다.')
         )
-        note.setWordWrap(True)
-        layout.addWidget(note)
+        self.file_note = self.note.text()
+        self.note.setWordWrap(True)
+        layout.addWidget(self.note)
         test = QPushButton(tr('현재 입력으로 시험 실행'))
         test.clicked.connect(self.test_run)
         layout.addWidget(test)
@@ -99,6 +114,16 @@ class EntryDialog(QDialog):
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
         self.script.textChanged.connect(self.update_modes)
+        self.kind.currentIndexChanged.connect(self.update_kind)
+        self.update_kind()
+
+    def update_kind(self):
+        web = self.kind.currentData() == 'web'
+        for widget in (self.script_row, self.cwd_row, self.args, self.mode, self.multiple):
+            self.form.setRowVisible(widget, not web)
+        self.form.setRowVisible(self.url, web)
+        self.note.setText(tr('웹 링크는 기본 브라우저로 엽니다. 등록만으로 열리지 않으며, 링크별 CPU와 실행 상태는 추적하지 않습니다.')
+                          if web else self.file_note)
         self.update_modes()
 
     def update_modes(self):
@@ -140,15 +165,18 @@ class EntryDialog(QDialog):
             self.cwd.setText(str(Path(path)))
 
     def value(self):
+        web = self.kind.currentData() == 'web'
+        if web:
+            validate_web_link(self.url.text().strip())
         fields = dict(
             name=self.name.text().strip(),
-            script_path=self.script.text(),
-            working_directory=self.cwd.text(),
+            script_path=self.url.text().strip() if web else self.script.text(),
+            working_directory='' if web else self.cwd.text(),
             arguments=tuple(s for s in self.args.toPlainText().splitlines() if s)
-            if self.args.isEnabled() else (),
-            console_mode=self.mode.currentData(),
+            if self.args.isEnabled() and not web else (),
+            console_mode='close_on_exit' if web else self.mode.currentData(),
             favorite=self.favorite.isChecked(),
-            allow_multiple=self.multiple.isChecked(),
+            allow_multiple=self.multiple.isChecked() if not web else False,
         )
         value = replace(self.entry, **fields) if self.entry else LauncherEntry(**fields)
         value.validate()
@@ -248,6 +276,7 @@ class MainWindow(QMainWindow):
             button.clicked.connect(callback)
             self.edit_buttons.append(button)
             row.addWidget(button)
+        self.list.currentItemChanged.connect(self.update_folder_button)
         layout.addLayout(row)
         self.recover_button = QPushButton(tr('마지막 정상 백업으로 복구'))
         self.recover_button.clicked.connect(self.recover)
@@ -326,16 +355,19 @@ class MainWindow(QMainWindow):
         self.list.clear()
         for entry in self.entries:
             status = self.statuses.get(entry.id, tr('아직 실행하지 않음'))
+            mode = tr('기본 브라우저로 열기') if is_web_link(entry.script_path) else MODES[entry.console_mode]
             item = QListWidgetItem(
-                f"{'★ ' if entry.favorite else ''}{entry.name}\n{entry.script_path}\n{MODES[entry.console_mode]} · {status}"
+                f"{'★ ' if entry.favorite else ''}{entry.name}\n{entry.script_path}\n{mode} · {status}"
             )
             item.setData(Qt.UserRole, entry.id)
-            item.setToolTip(tr('{p0}\n작업 폴더: {p1}', p0=entry.script_path, p1=entry.working_directory))
+            item.setToolTip(entry.script_path if is_web_link(entry.script_path) else
+                            tr('{p0}\n작업 폴더: {p1}', p0=entry.script_path, p1=entry.working_directory))
             self.list.addItem(item)
             if selected and entry.id == selected.id:
                 self.list.setCurrentItem(item)
         for button in self.edit_buttons:
             button.setEnabled(not self.store.blocked)
+        self.update_folder_button()
         self.recover_button.setVisible(self.store.can_recover())
         menu = QMenu(self)
         menu.addAction(tr('사용량 열기'), lambda: self.open_tab(0))
@@ -434,8 +466,13 @@ class MainWindow(QMainWindow):
             self.commit(entries)
 
     def open_folder(self):
-        if entry := self.selected():
+        if (entry := self.selected()) and not is_web_link(entry.script_path):
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(Path(entry.script_path).parent)))
+
+    def update_folder_button(self, *_):
+        selected = self.selected()
+        self.edit_buttons[-1].setEnabled(not self.store.blocked and selected is not None
+                                         and not is_web_link(selected.script_path))
 
     def recover(self):
         if (

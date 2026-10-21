@@ -31,7 +31,7 @@ from usagedesk.domain import QuotaLimit  # noqa: E402
 from usagedesk.launcher import LauncherEntry  # noqa: E402
 from usagedesk.providers import Snapshot  # noqa: E402
 from usagedesk.storage import ConfigStore  # noqa: E402
-from usagedesk.ui import MainWindow  # noqa: E402
+from usagedesk.ui import EntryDialog, MainWindow  # noqa: E402
 
 font = Path(os.environ["WINDIR"]) / "Fonts" / "malgun.ttf"
 if font.is_file():
@@ -95,6 +95,14 @@ window.grab().save(str(output / ("file-launcher" + ("-en" if args.language == "e
 window.tabs.setCurrentIndex(2)
 app.processEvents()
 window.grab().save(str(output / ("hotkey-settings" + ("-en" if args.language == "en" else "") + ".png")))
+link_dialog = EntryDialog(window)
+link_dialog.kind.setCurrentIndex(link_dialog.kind.findData('web'))
+link_dialog.name.setText('Project website' if args.language == 'en' else '프로젝트 웹사이트')
+link_dialog.url.setText('https://example.com/project')
+link_dialog.show()
+app.processEvents()
+link_dialog.grab().save(str(output / ("web-link" + ("-en" if args.language == "en" else "") + ".png")))
+link_dialog.reject()
 window.entries += [LauncherEntry(f"Project Workspace {i}", rf"C:\UsageDeskDemo\{i}.html",
                                 r"C:\UsageDeskDemo") for i in range(8)]
 window.bar.options = replace(window.bar.options, programs=tuple(e.id for e in window.entries))
@@ -107,4 +115,4 @@ window.usage.shutdown()
 window.usage.pool.waitForDone()
 window.bar.hide()
 window.hide()
-print("Rendered 7 README screenshots with isolated synthetic data.")
+print("Rendered 8 README screenshots with isolated synthetic data.")

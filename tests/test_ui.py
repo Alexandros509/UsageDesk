@@ -101,6 +101,61 @@ def test_html_registration_uses_default_app_and_disables_script_options(window):
     dialog.deleteLater()
 
 
+def test_web_link_registration_edit_and_type_switch_preserve_inputs(window, monkeypatch):
+    calls = []
+    monkeypatch.setattr(window, 'launch', calls.append)
+    dialog = EntryDialog(window)
+    dialog.name.setText('Website')
+    dialog.script.setText(r'C:\apps\run.cmd')
+    dialog.cwd.setText(r'C:\apps')
+    dialog.args.setPlainText('original argument')
+    dialog.mode.setCurrentIndex(dialog.mode.findData('hidden'))
+    dialog.kind.setCurrentIndex(dialog.kind.findData('web'))
+    assert dialog.form.isRowVisible(dialog.url)
+    assert not dialog.form.isRowVisible(dialog.cwd_row)
+    assert not dialog.form.isRowVisible(dialog.mode)
+    dialog.url.setText('https://example.com/app.exe?a=1&b=2')
+    value = dialog.value()
+    assert value.script_path == dialog.url.text()
+    assert value.working_directory == '' and value.arguments == ()
+    assert value.console_mode == 'close_on_exit'
+    dialog.kind.setCurrentIndex(dialog.kind.findData('file'))
+    assert dialog.form.isRowVisible(dialog.script_row)
+    assert dialog.value().arguments == ('original argument',)
+    assert dialog.value().console_mode == 'hidden'
+    dialog.kind.setCurrentIndex(dialog.kind.findData('web'))
+    dialog.save()
+    assert not calls
+    assert window.commit([dialog.result_entry])
+    restored = window.store.load()[0]
+    edited = EntryDialog(window, restored)
+    assert edited.kind.currentData() == 'web'
+    assert edited.url.text() == value.script_path
+    edited.url.setText('http://localhost:3000/')
+    edited.save()
+    assert edited.result_entry.id == restored.id
+    window.list.setCurrentRow(0)
+    assert not window.edit_buttons[-1].isEnabled()
+    assert '기본 브라우저로 열기' in window.list.item(0).text()
+    menu = window.tray_menu.actions()[2].menu()
+    menu.actions()[0].trigger()
+    assert calls == [restored]
+    edited.deleteLater()
+    dialog.deleteLater()
+
+
+def test_web_link_dialog_rejects_other_protocols(window, monkeypatch):
+    messages = []
+    monkeypatch.setattr(QMessageBox, 'warning', lambda *args: messages.append(args))
+    dialog = EntryDialog(window)
+    dialog.name.setText('Website')
+    dialog.kind.setCurrentIndex(dialog.kind.findData('web'))
+    dialog.url.setText('file:///C:/apps/run.exe')
+    dialog.save()
+    assert messages and dialog.result_entry is None
+    dialog.deleteLater()
+
+
 def test_corrupt_config_blocks_all_mutation_and_launch(app, tmp_path):
     raw = b"broken"
     (tmp_path / "config.json").write_bytes(raw)
