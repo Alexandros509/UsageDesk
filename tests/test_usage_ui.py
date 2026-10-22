@@ -204,3 +204,46 @@ def test_grok_missing_usage_keeps_previous_value_and_recovers(tmp_path, monkeypa
         pane.pool.waitForDone()
         pane.deleteLater()
         app.processEvents()
+
+
+def test_grok_cli_relogin_automatically_resumes_halted_controller(tmp_path, monkeypatch):
+    from usagedesk.grok_auth import GrokAuthStore
+
+    app = QApplication.instance() or QApplication([])
+    pane = UsagePane(tmp_path, autoload=False)
+    session = pane.sessions['grok']
+    session.auth_store = GrokAuthStore(tmp_path / 'fake-auth.json')
+    session.auth_store.path.write_text('{}', 'utf-8')
+    session.tokens = True
+    pane.policies['grok'].reconnect()
+    calls = []
+    def fail(_):
+        calls.append('expired')
+        raise ProviderError('AUTH_REQUIRED')
+    monkeypatch.setattr(session, 'fetch', fail)
+    try:
+        pane.refresh('grok')
+        pump(app, pane)
+        assert pane.policies['grok'].halted
+        pane.tick()
+        assert calls == ['expired'] and not pane.tasks
+        snapshot = Snapshot(datetime.now(UTC), [QuotaLimit('account', '주간 한도', 5)])
+        def renewed(_):
+            calls.append('renewed')
+            return snapshot
+        monkeypatch.setattr(session, 'fetch', renewed)
+        session.auth_store.path.write_text('{"fake-cli-sign-in": true}', 'utf-8')
+        pane.tick()
+        pump(app, pane)
+        assert calls == ['expired', 'renewed']
+        assert 'grok' not in pane.errors and not pane.policies['grok'].halted
+        assert pane.snapshots['grok'] is snapshot
+        pane.disconnect('grok')
+        session.auth_store.path.write_text('{}', 'utf-8')
+        pane.tick()
+        assert not pane.tasks  # Explicitly disconnected accounts stay disconnected.
+    finally:
+        pane.shutdown()
+        pane.pool.waitForDone()
+        pane.deleteLater()
+        app.processEvents()

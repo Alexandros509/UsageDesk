@@ -29,6 +29,7 @@ from .oauth import CONFIGS, MANUAL_REDIRECT, LoopbackLogin, ProviderError, Trans
 from .providers import AccountSession
 
 MESSAGES = {
+    'AUTH_BUSY': tr('Grok CLI가 인증을 갱신 중입니다. 잠시 후 자동 재시도합니다.'),
     "AUTH_REQUIRED": tr('인증이 만료되었습니다. 다시 로그인하세요.'),
     "AUTH_DENIED": tr('로그인 승인이 취소되었습니다.'),
     "AUTH_EXPIRED": tr('로그인 시간이 만료되었습니다. 다시 시작하세요.'),
@@ -180,7 +181,7 @@ class GrokLoginDialog(QDialog):
         self.resize(580, 240)
         layout = QVBoxLayout(self)
         layout.addWidget(label(
-            tr('설치된 Grok CLI의 현재 개인 계정으로 실제 사용 한도를 조회합니다.\nCLI 인증 토큰을 공식 Grok 한도 조회 서비스에 전송합니다.\n토큰은 별도 저장하지 않으며, 연결 해제는 CLI 로그인을 유지합니다.')
+            tr('설치된 Grok CLI의 현재 개인 계정으로 실제 사용 한도를 조회합니다.\n인증 토큰은 공식 Grok 인증·한도 조회 서비스에 전송합니다.\n자동 갱신 시 CLI 인증 파일을 안전하게 갱신하며, 연결 해제는 CLI 로그인을 유지합니다.')
         ))
         layout.addWidget(label(str(GROK_CLI)))
         self.status = label(tr('이미 로그인했다면 ‘현재 CLI 계정 연결’을 누르세요.'))
@@ -220,6 +221,7 @@ class UsagePane(QWidget):
         self.policies = {key: RefreshPolicy() for key in self.sessions}
         self.snapshots = {}
         self.errors = {}
+        self.grok_auth_revision = None
         self.tasks = {}
         self.closed = False
         self.cards = {}
@@ -266,7 +268,7 @@ class UsagePane(QWidget):
         layout.addWidget(scroll)
         layout.addWidget(
             label(
-                tr('Claude·Codex 인증은 Windows 사용자 범위로 암호화됩니다. Grok 인증은 설치된 CLI가 관리하며, 조회할 때만 읽습니다.')
+                tr('Claude·Codex 인증은 Windows 사용자 범위로 암호화됩니다. Grok 인증은 CLI와 공유하며, 만료 전 자동 갱신합니다.')
             )
         )
         self.timer = QTimer(self)
@@ -350,6 +352,12 @@ class UsagePane(QWidget):
 
     def tick(self):
         if not self.closed:
+            if (self.errors.get('grok') == 'AUTH_REQUIRED' and self.sessions['grok'].tokens is not None
+                    and self.policies['grok'].halted and 'grok' not in self.tasks):
+                revision = self.sessions['grok'].auth_store.revision()
+                if revision is not None and revision != self.grok_auth_revision:
+                    self.grok_auth_revision = revision
+                    self.policies['grok'].reconnect()
             for key in self.sessions:
                 self.refresh(key)
             self.render()
@@ -379,6 +387,8 @@ class UsagePane(QWidget):
             )
             if error:
                 self.errors[key] = error.code
+                if key == 'grok' and error.code == 'AUTH_REQUIRED':
+                    self.grok_auth_revision = self.sessions['grok'].auth_store.revision()
                 if error.code in {"STORAGE_ERROR", "REQUEST_REJECTED"}:
                     policy.halted = True
             else:
@@ -396,7 +406,7 @@ class UsagePane(QWidget):
                 error, tr('계정 미연결') if self.sessions[key].tokens is None else tr('연결됨')
             )
             if key == "grok" and error == "AUTH_REQUIRED":
-                text = tr('Grok CLI 인증이 필요합니다. 로그인 / 다시 연결에서 CLI 로그인 후 연결하세요.')
+                text = tr('Grok 인증을 자동 갱신할 수 없습니다. 로그인 / 다시 연결에서 CLI 로그인하세요. 로그인 후 자동 복구됩니다.')
             if key in self.tasks:
                 text = tr('인증·사용량 확인 중…')
             if policy.retry_at > time.monotonic():

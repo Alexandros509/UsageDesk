@@ -5,8 +5,13 @@ UsageDesk handles authentication material and launches user-selected local files
 ## Data handling
 
 - Claude/Codex credentials: current-user Windows DPAPI with restricted local ACLs.
-- Grok: reads the current CLI access token for the configured CLI billing endpoint;
-  does not copy, persist or rotate the token. Stores the link preference locally.
+- Grok: reads the CLI credentials for billing and renews them at the fixed official
+  `https://auth.x.ai/oauth2/token` endpoint. Uses the CLI-compatible shared lock,
+  rechecks credentials after acquiring it, and atomically replaces the CLI file
+  with user/SYSTEM-only permissions. Only the link preference is kept in the app's vault.
+  A response containing rotated tokens is persisted even if the UI disconnects
+  during the exchange. Failed writes retain the response in memory for a retry;
+  closing the app before a successful write can still require CLI sign-in again.
 - No UsageDesk telemetry or collection server. Provider requests go directly to
   configured service endpoints over HTTPS.
 - HTTP redirects and automatic proxy environment configuration are disabled.

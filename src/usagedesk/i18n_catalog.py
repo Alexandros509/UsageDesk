@@ -606,4 +606,14 @@ EN = {'UsageDesk 사용량 바': 'UsageDesk usage bar',
  '웹 링크에는 작업 폴더·추가 인수·콘솔 모드를 지정할 수 없습니다.':
      'Web links do not accept a working directory, extra arguments or console modes.',
  '웹 링크는 기본 브라우저로 엽니다. 등록만으로 열리지 않으며, 링크별 CPU와 실행 상태는 추적하지 않습니다.':
-     'Web links open in your default browser. Saving does not open them. Per-link CPU and running state cannot be tracked.'}
+     'Web links open in your default browser. Saving does not open them. Per-link CPU and running state cannot be tracked.',
+ 'Grok CLI가 인증을 갱신 중입니다. 잠시 후 자동 재시도합니다.':
+     'Grok CLI is refreshing authentication. UsageDesk will retry shortly.',
+ 'Grok CLI 인증 사용 · 만료 전 자동 갱신하며 갱신 불가 시 다시 로그인하세요.':
+     'Uses Grok CLI authentication. Refreshes automatically before expiry; sign in again if renewal fails.',
+ '설치된 Grok CLI의 현재 개인 계정으로 실제 사용 한도를 조회합니다.\n인증 토큰은 공식 Grok 인증·한도 조회 서비스에 전송합니다.\n자동 갱신 시 CLI 인증 파일을 안전하게 갱신하며, 연결 해제는 CLI 로그인을 유지합니다.':
+     'Queries real usage limits for the current personal account in the installed Grok CLI.\nAuthentication tokens are sent to official Grok authentication and usage services.\nAutomatic renewal securely updates the CLI auth file; disconnecting preserves the CLI login.',
+ 'Grok 인증을 자동 갱신할 수 없습니다. 로그인 / 다시 연결에서 CLI 로그인하세요. 로그인 후 자동 복구됩니다.':
+     'Grok authentication cannot be renewed automatically. Use Sign in / Reconnect to sign in through the CLI. UsageDesk recovers automatically after sign-in.',
+ 'Claude·Codex 인증은 Windows 사용자 범위로 암호화됩니다. Grok 인증은 CLI와 공유하며, 만료 전 자동 갱신합니다.':
+     'Claude/Codex credentials are encrypted for this Windows user. Grok authentication is shared with the CLI and refreshes automatically before expiry.'}

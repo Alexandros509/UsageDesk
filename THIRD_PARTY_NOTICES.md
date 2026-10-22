@@ -17,7 +17,8 @@ imply sponsorship or API compatibility guarantees.
 - Repository: https://github.com/xai-org/grok-build
 - Reviewed commit: `2bdd1d6a6369de0e8c68132ea4539e9abd9e14a8`
 - Reference: [billing.rs](https://github.com/xai-org/grok-build/blob/2bdd1d6a6369de0e8c68132ea4539e9abd9e14a8/crates/codegen/xai-grok-shell/src/extensions/billing.rs), CLI login configuration and credential storage.
-- Use: Python adapter written against the CLI billing protocol and default personal OAuth credential format. No CLI executable or Rust source tree is included.
+- Additional reference: `xai-grok-login/src/oidc/protocol.rs`, `oidc/refresh.rs` and `manager/lock.rs` for OAuth refresh and the Windows shared auth lock.
+- Use: Python adapter written against the CLI billing protocol, default personal OAuth credential format and refresh/locking protocol. No CLI executable or Rust source tree is included.
 - Copyright 2023-2026 SpaceXAI, as stated in the referenced license.
 - Original license: [Grok-Build-Apache-2.0.txt](licenses/Grok-Build-Apache-2.0.txt). No root NOTICE file was found at this commit.
 

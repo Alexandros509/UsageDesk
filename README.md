@@ -10,7 +10,7 @@
 
 Claude · Codex · Grok의 사용량과 초기화 시간을 확인하고, 프로그램·HTML·문서를 같은 바에서 여는 Windows 데스크톱 유틸리티입니다.
 
-Windows 11 · Python 3.13 · PySide6 · **0.1.0a20 / Alpha** · [MIT](LICENSE)
+Windows 11 · Python 3.13 · PySide6 · **0.1.0a21 / Alpha** · [MIT](LICENSE)
 
 ![어두운 테마의 UsageDesk 바](docs/images/toolbar-dark.png)
 
@@ -104,7 +104,7 @@ Codex 수치는 **ChatGPT 계정의 Codex 사용 한도**이며 일반 ChatGPT �
 
 **Grok**
 
-공식 [Grok Build CLI](https://github.com/xai-org/grok-build)의 기본 개인 계정을 연결합니다. 기본 경로는 `%USERPROFILE%\.grok\bin\grok.exe`입니다. Grok 연결 창에서 CLI 로그인을 연 뒤 `현재 CLI 계정 연결`을 누릅니다. CLI 토큰이 만료되면 CLI에서 로그인한 후 다시 연결하세요.
+공식 [Grok Build CLI](https://github.com/xai-org/grok-build)의 기본 개인 계정을 연결합니다. 기본 경로는 `%USERPROFILE%\.grok\bin\grok.exe`입니다. 최초 한 번 Grok 연결 창에서 CLI 로그인을 연 뒤 `현재 CLI 계정 연결`을 누릅니다. 이후 조회 시 만료 5분 이내의 인증을 자동 갱신하며, 서버가 401을 반환하면 갱신 후 조회를 한 번 재시도합니다. CLI와 같은 `auth.json.lock` 잠금을 사용해 중복 갱신을 방지합니다. 갱신 토큰이 없거나 폐기된 경우에만 재로그인이 필요합니다. CLI에서 다시 로그인하면 인증 파일 변경을 감지해 조회를 재개합니다. 네트워크 오류나 요청 제한은 기존 인증을 유지하며 재시도합니다.
 
 Grok은 계정의 통합 사용 한도를 보여줍니다. 개별 대화의 토큰 수나 API 사용 비용을 합산한 값은 아닙니다.
 
@@ -169,7 +169,7 @@ Python은 프로젝트의 `.venv`를 우선 사용합니다. 필요한 실행기
 
 - 앱 데이터는 `%LOCALAPPDATA%\UsageDesk`에 저장합니다.
 - Claude·Codex 인증정보는 현재 Windows 사용자 기준 DPAPI로 암호화하고 파일 접근 권한을 제한합니다.
-- Grok은 CLI 인증 파일의 현재 액세스 토큰을 조회에 사용합니다. 토큰을 별도로 복사·저장·갱신하지 않고 연결 여부만 저장합니다.
+- Grok은 CLI 인증 파일의 현재 토큰을 조회·자동 갱신에 사용합니다. 갱신 토큰은 공식 `https://auth.x.ai/oauth2/token`에만 전송하며, 교체된 인증은 CLI 파일에 접근 권한을 제한해 원자적으로 저장합니다. 앱 전용 토큰 저장소에는 복사하지 않고 연결 여부만 저장합니다.
 - 조회는 해당 서비스로 직접 요청합니다. UsageDesk가 운영하는 수집 서버나 분석 텔레메트리는 없습니다.
 - 연결 해제는 로컬 연결 해제입니다. 서버 토큰 폐기나 Grok CLI 로그아웃을 의미하지 않습니다.
 
@@ -188,9 +188,9 @@ Grok 응답에 현재 사용량 값이 없으면 마지막 성공 데이터를 �
 .\build.ps1
 ```
 
-현재 검증: **자동 테스트 323개**, Ruff, Windows EXE 시작·종료 검사. 바 길이 왕복 변경, 초기화 표시 유지, 상·하단 고정 및 트레이 복원과 웹 링크 등록·편집·기본 브라우저 실행을 검증합니다. 모든 계정·플랜·PC 환경에서의 동작을 보장하는 것은 아닙니다.
+현재 검증: **자동 테스트 339개**, Ruff, Windows EXE 시작·종료 검사. 바 길이 왕복 변경, 초기화 표시 유지, 상·하단 고정 및 트레이 복원과 웹 링크 등록·편집·기본 브라우저 실행을 검증합니다. 모든 계정·플랜·PC 환경에서의 동작을 보장하는 것은 아닙니다.
 
-빌드 결과는 `dist\0.1.0a20\UsageDesk\`에 생성됩니다. **EXE만 옮기지 말고 폴더 전체를 이동**해야 합니다. Python/Qt 의존성 고지와 라이브러리 교체 안내를 동봉합니다. `python scripts/package_release.py`로 바이너리·대응 소스 ZIP과 체크섬을 생성합니다. 서명하지 않은 알파 빌드입니다.
+빌드 결과는 `dist\0.1.0a21\UsageDesk\`에 생성됩니다. **EXE만 옮기지 말고 폴더 전체를 이동**해야 합니다. Python/Qt 의존성 고지와 라이브러리 교체 안내를 동봉합니다. `python scripts/package_release.py`로 바이너리·대응 소스 ZIP과 체크섬을 생성합니다. 서명하지 않은 알파 빌드입니다.
 
 README 화면은 다음 명령으로 다시 생성할 수 있습니다. 격리된 폴더와 예시 데이터만 사용합니다.
 

@@ -10,7 +10,7 @@
 
 UsageDesk is a Windows desktop utility that shows Claude, Codex and Grok usage and reset times, and opens programs, HTML pages and documents from the same bar.
 
-Windows 11 · Python 3.13 · PySide6 · **0.1.0a20 / Alpha** · [MIT](LICENSE)
+Windows 11 · Python 3.13 · PySide6 · **0.1.0a21 / Alpha** · [MIT](LICENSE)
 
 ![UsageDesk toolbar in dark mode](docs/images/toolbar-dark-en.png)
 
@@ -106,7 +106,7 @@ Codex values represent **Codex usage limits associated with your ChatGPT account
 
 **Grok**
 
-Connect the default personal account of the official [Grok Build CLI](https://github.com/xai-org/grok-build). The default executable path is `%USERPROFILE%\.grok\bin\grok.exe`. Open CLI sign-in from the Grok connection dialog, then select `Connect current CLI account`. If the CLI token expires, sign in through the CLI and reconnect.
+Connect the default personal account of the official [Grok Build CLI](https://github.com/xai-org/grok-build). The default executable path is `%USERPROFILE%\.grok\bin\grok.exe`. Sign in through the connection dialog once, then select `Connect current CLI account`. Subsequent polls refresh credentials within five minutes of expiry. A billing 401 triggers refresh and one retry. The CLI's shared `auth.json.lock` prevents concurrent refreshes. Missing or revoked refresh credentials require sign-in again; UsageDesk detects the changed CLI auth file and resumes polling. Network failures and rate limits retain the existing credentials and retry later.
 
 Grok shows the account's combined usage limit. It does not sum per-conversation token counts or API spending. If a successful response omits usage values, the app retains the last successful snapshot, labels it as previous data, and retries at the normal three-minute interval. Manual refresh becomes available after the standard ten-second cooldown. Missing data is never treated as 0% usage; server rate limits still enforce their required wait.
 
@@ -173,7 +173,7 @@ Long names use up to two lines. When space runs out, the bar **reduces padding �
 - Claude and Codex access/refresh tokens, expiry and account identifier are stored in `secrets/claude.dpapi` and `secrets/codex.dpapi` under that directory, encrypted with Windows DPAPI for the current user. File permissions allow only that user and SYSTEM. Passwords are not stored.
 - Grok CLI manages `%USERPROFILE%\.grok\auth.json`. UsageDesk reads it per request and saves only the encrypted link preference in `secrets/grok.dpapi`.
 - Program paths and UI preferences live in local settings files, including `config.json`, `display.ini`, `hotkeys.json` and `language.json`. These are excluded from Git and release source archives.
-- Grok usage requests read the current access token from the CLI's authentication file. UsageDesk does not separately copy, store or refresh that token; it stores only the connection preference.
+- Grok reads and renews the CLI's current credentials. Refresh tokens are sent only to the official `https://auth.x.ai/oauth2/token` endpoint. Rotated credentials atomically replace the CLI auth file with restricted access permissions. UsageDesk stores only the connection preference in its own vault, not a separate token copy.
 - Requests go directly to the respective service. UsageDesk has no collection server or analytics telemetry.
 - Disconnecting removes the local connection. It does not revoke server tokens or sign out of the Grok CLI.
 
@@ -188,9 +188,9 @@ See the [release runbook](RUNBOOK.en.md) for preparation, publication review, Gi
 .\build.ps1
 ```
 
-Current validation: **323 automated tests**, Ruff and Windows EXE startup/shutdown checks. Coverage includes switching bar lengths back and forth, preserving reset-time display, top/bottom docking, restoration from tray mode, and registering, editing and opening web links in the default browser. This does not guarantee operation across every account, plan or PC environment.
+Current validation: **339 automated tests**, Ruff and Windows EXE startup/shutdown checks. Coverage includes switching bar lengths back and forth, preserving reset-time display, top/bottom docking, restoration from tray mode, and registering, editing and opening web links in the default browser. This does not guarantee operation across every account, plan or PC environment.
 
-Build output is written to `dist\0.1.0a20\UsageDesk\`. **Move the entire folder, not just the EXE.** Python/Qt notices and library replacement instructions are included. Run `python scripts/package_release.py` to produce binary and corresponding source ZIPs with checksums. This is an unsigned alpha build.
+Build output is written to `dist\0.1.0a21\UsageDesk\`. **Move the entire folder, not just the EXE.** Python/Qt notices and library replacement instructions are included. Run `python scripts/package_release.py` to produce binary and corresponding source ZIPs with checksums. This is an unsigned alpha build.
 
 Regenerate README screenshots with the following command. It uses only an isolated directory and synthetic data:
 
