@@ -651,3 +651,34 @@ def test_closed_combo_ignores_wheel_to_prevent_accidental_size_change(bar):
     assert combo.currentIndex() == previous
     dialog.hide()
     dialog.deleteLater()
+
+
+@pytest.mark.parametrize('basis', ['remaining', 'used'])
+@pytest.mark.parametrize('percentages', [True, False])
+def test_grok_period_without_percentage_keeps_unknown_gauge_and_reset(bar, basis, percentages):
+    widget, pane, _, app = bar
+    widget.available_geometry = lambda: QRect(0, 0, 1920, 1080)
+    reset = datetime.now(UTC) + timedelta(days=2)
+    pane.snapshots['grok'] = Snapshot(datetime.now(UTC), [QuotaLimit('account', '주간 한도', None, reset, 604800)])
+    pane.sessions['grok'].tokens = True
+    pane.errors['grok'] = 'USAGE_UNAVAILABLE'
+    widget.options = replace(widget.options, quota_display=basis, reset_display='inline', percentages=percentages)
+    pane.render()
+    item = next(item for item in widget.items if item[4] == 'grok' and item[3])
+    assert item[2] == ('—' if percentages else '')
+    assert '초기화' in quota_caption(item[3], widget.options)
+    tooltip = widget.tooltip_at(item[0].center())[0]
+    assert '인증 연결됨' in tooltip and '사용률 미제공' in tooltip
+    assert '0%' not in tooltip and '로그인' not in item[2]
+    widget.show()
+    app.processEvents()
+    assert not widget.grab().isNull()
+
+
+def test_connected_missing_usage_is_not_labeled_login(bar):
+    widget, pane, _, _ = bar
+    pane.sessions['grok'].tokens = True
+    pane.errors['grok'] = 'USAGE_UNAVAILABLE'
+    pane.render()
+    item = next(item for item in widget.items if item[4] == 'grok' and item[1] == 'detail')
+    assert item[2] == '사용률 미제공'

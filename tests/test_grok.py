@@ -358,3 +358,23 @@ def test_refresh_network_failure_keeps_credentials_for_retry(tmp_path):
         session.connect(0)
     assert session.tokens is True
     assert auth.read_bytes() == before
+
+
+@pytest.mark.parametrize('period', ['USAGE_PERIOD_TYPE_WEEKLY', 'USAGE_PERIOD_TYPE_MONTHLY'])
+@pytest.mark.parametrize('explicit_null', [False, True])
+def test_period_only_billing_is_connected_but_usage_remains_unknown(period, explicit_null):
+    config = {'currentPeriod': {'type': period, 'end': '2026-11-01T10:00:00Z'},
+              'isUnifiedBillingUser': True, 'onDemandUsed': {'val': 100}}
+    if explicit_null:
+        config['creditUsagePercent'] = None
+    snapshot = normalize_grok({'config': config})
+    limit, = snapshot.limits
+    assert limit.used_percent is None and limit.remaining_percent is None
+    assert limit.reset_at_utc == datetime(2026, 11, 1, 10, tzinfo=UTC)
+    assert snapshot.warnings
+
+
+@pytest.mark.parametrize('reset', ['not-a-date', '2026-11-01'])
+def test_missing_usage_and_invalid_period_does_not_create_a_quota(reset):
+    with pytest.raises(ProviderError, match='USAGE_UNAVAILABLE'):
+        normalize_grok({'config': {'currentPeriod': {'type': 'USAGE_PERIOD_TYPE_WEEKLY', 'end': reset}}})

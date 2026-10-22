@@ -136,7 +136,7 @@ def visible_limits(snapshot, provider, options):
         return []
     return [
         quota for quota in snapshot.limits
-        if quota.used_percent is not None
+        if (quota.used_percent is not None or provider == 'grok' and quota.reset_at_utc is not None)
         and (options.mode == "smart" or quota_selected(snapshot, provider, quota.key, options.selected))
     ]
 
@@ -206,6 +206,26 @@ def display_percent(quota, options, *, provider=None, snapshot=None):
     if exhausted_weekly(quota, provider, snapshot) is not None:
         return 0 if options.quota_display == "remaining" else 100
     return quota.remaining_percent if options.quota_display == "remaining" else quota.used_percent
+
+
+def percentage_text(quota, options, provider, snapshot):
+    if not options.percentages:
+        return ''
+    value = display_percent(quota, options, provider=provider, snapshot=snapshot)
+    return '—' if value is None else f'{value:g}%'
+
+
+def empty_provider_text(pane, provider):
+    if provider in pane.tasks:
+        return tr('조회 중…')
+    snapshot = pane.snapshots.get(provider)
+    if snapshot:
+        return snapshot.notes[0][:24] if snapshot.notes else tr('선택 없음')
+    if pane.errors.get(provider) == 'USAGE_UNAVAILABLE':
+        return tr('사용률 미제공')
+    if pane.sessions[provider].tokens is not None and pane.errors.get(provider) != 'AUTH_REQUIRED':
+        return tr('조회 불가') if pane.errors.get(provider) else tr('조회 대기')
+    return tr('로그인')
 
 
 def weekly_explanation(quota, provider, snapshot):
@@ -344,8 +364,9 @@ class DisplayDialog(QDialog):
             QPushButton:hover { background: #edf3fc; border-color: #82a7dc; }
             QPushButton:pressed { background: #dce9fb; }
             QPushButton:focus { border: 2px solid #2563eb; }
-            QPushButton#saveDisplay { background: #2563eb; color: white; border-color: #2563eb; }
-            QPushButton#saveDisplay:hover { background: #1d4ed8; }
+            QPushButton#saveDisplay { background: #e7ebf2; color: #303747; border-color: #8e9cb1; }
+            QPushButton#saveDisplay:hover { background: #f0f3f8; border-color: #536177; }
+            QPushButton#saveDisplay:focus { border: 2px solid #8e9cb1; }
         """.replace("__CHECK_MARK__", (Path(__file__).parent / "assets" / "check.svg").as_posix())
             .replace("__CHEVRON__", (Path(__file__).parent / "assets" / "chevron.svg").as_posix()))
         self._light_style = self.styleSheet()
@@ -654,14 +675,11 @@ class UsageBar(QWidget):
             quotas = visible_limits(snapshot, provider, self.options)
             if quotas:
                 content = sum(max(metrics.horizontalAdvance(
-                    f"{display_percent(q, self.options, provider=provider, snapshot=snapshot):g}%" if self.options.percentages else ""),
+                    percentage_text(q, self.options, provider, snapshot)),
                     caption_metrics.horizontalAdvance(quota_caption(q, self.options, provider=provider, snapshot=snapshot)))
                     + (25 if self.options.icons else 0) + 16 for q in quotas)
             else:
-                text = tr('조회 중…') if provider in self.pane.tasks else (
-                    tr('로그인') if snapshot is None else tr('선택 없음'))
-                if snapshot and snapshot.notes:
-                    text = snapshot.notes[0][:24]
+                text = empty_provider_text(self.pane, provider)
                 content = metrics.horizontalAdvance(text) + 18
             demands[provider] = title_width + max(44, content)
             budgets[provider] = title_width + 44
@@ -741,16 +759,12 @@ class UsageBar(QWidget):
             remaining = budget - width
             quotas = visible_limits(snapshot, provider, self.options)
             if not quotas:
-                text = tr('조회 중…') if provider in self.pane.tasks else (
-                    tr('로그인') if snapshot is None else tr('선택 없음')
-                )
-                if snapshot and snapshot.notes:
-                    text = snapshot.notes[0][:24]
+                text = empty_provider_text(self.pane, provider)
                 width = min(max(40, remaining), metrics.horizontalAdvance(text) + 18)
                 items.append((QRect(x, 0, width, height), "detail", text, None, provider, status))
                 x += width
             for index, quota in enumerate(quotas):
-                text = f"{display_percent(quota, self.options, provider=provider, snapshot=snapshot):g}%" if self.options.percentages else ""
+                text = percentage_text(quota, self.options, provider, snapshot)
                 caption = quota_caption(quota, self.options, provider=provider, snapshot=snapshot)
                 width = max(metrics.horizontalAdvance(text), caption_metrics.horizontalAdvance(caption))
                 width += (25 if self.options.icons else 0) + 16
@@ -761,7 +775,9 @@ class UsageBar(QWidget):
                                   provider, tr('상세 창에서 전체 한도 보기')))
                     x += 44
                     break
-                tooltip = tr('{p0} · {p1}\n사용 {p2:g}%', p0=name, p1=quota.label, p2=quota.used_percent)
+                tooltip = (tr('{p0} · {p1}\n사용률 미제공 · 인증 연결됨', p0=name, p1=quota.label)
+                           if quota.used_percent is None else
+                           tr('{p0} · {p1}\n사용 {p2:g}%', p0=name, p1=quota.label, p2=quota.used_percent))
                 if quota.reset_at_utc:
                     tooltip += tr('\n초기화 {p0:%m-%d %H:%M}', p0=quota.reset_at_utc.astimezone())
                 tooltip += weekly_explanation(quota, provider, snapshot)
@@ -980,9 +996,9 @@ class UsageBar(QWidget):
             color = QColor("#20bba5" if provider == "codex" else "#4eaf72")
             if quota.window_seconds and quota.window_seconds >= 86400 or "seven_day" in quota.key:
                 color = QColor("#5297f2" if provider == "codex" else "#9b7aeb")
-            if exhausted_weekly(quota, provider, snapshot) is not None or quota.used_percent >= 90:
+            if exhausted_weekly(quota, provider, snapshot) is not None or (quota.used_percent or 0) >= 90:
                 color = QColor("#e56b72")
-            elif quota.used_percent >= 75:
+            elif (quota.used_percent or 0) >= 75:
                 color = QColor("#dba344")
             if self.options.theme == "mono":
                 color = foreground
@@ -992,9 +1008,10 @@ class UsageBar(QWidget):
                 painter.setBrush(Qt.NoBrush)
                 painter.setPen(QPen(border, 3))
                 painter.drawEllipse(circle)
-                painter.setPen(QPen(color, 3, Qt.SolidLine, Qt.RoundCap))
-                painter.drawArc(circle, 90 * 16,
-                                -round(min(100, display_percent(quota, self.options, provider=provider, snapshot=snapshot)) * 3.6 * 16))
+                value = display_percent(quota, self.options, provider=provider, snapshot=snapshot)
+                if value is not None:
+                    painter.setPen(QPen(color, 3, Qt.SolidLine, Qt.RoundCap))
+                    painter.drawArc(circle, 90 * 16, -round(min(100, value) * 3.6 * 16))
                 left += 25
             painter.setPen(foreground)
             text_rect = QRect(left, rect.top(), rect.right() - left, rect.height())
@@ -1018,7 +1035,9 @@ class UsageBar(QWidget):
             if quota is None:
                 return tooltip, rect
             now = now or datetime.now(UTC)
-            text = (tr('{p0} · {p1}\n사용 {p2:g}% · 남음 {p3:g}%', p0=provider.title(), p1=quota.label, p2=quota.used_percent, p3=quota.remaining_percent))
+            text = (tr('{p0} · {p1}\n사용률 미제공 · 인증 연결됨', p0=provider.title(), p1=quota.label)
+                    if quota.used_percent is None else
+                    tr('{p0} · {p1}\n사용 {p2:g}% · 남음 {p3:g}%', p0=provider.title(), p1=quota.label, p2=quota.used_percent, p3=quota.remaining_percent))
             if quota.reset_at_utc:
                 seconds = max(0, int((quota.reset_at_utc - now).total_seconds()))
                 remaining = (tr('{p0}일 {p1}시간 {p2}분 남음', p0=seconds // 86400, p1=seconds % 86400 // 3600, p2=seconds % 3600 // 60) if seconds >= 60

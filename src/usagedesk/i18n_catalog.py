@@ -616,4 +616,14 @@ EN = {'UsageDesk 사용량 바': 'UsageDesk usage bar',
  'Grok 인증을 자동 갱신할 수 없습니다. 로그인 / 다시 연결에서 CLI 로그인하세요. 로그인 후 자동 복구됩니다.':
      'Grok authentication cannot be renewed automatically. Use Sign in / Reconnect to sign in through the CLI. UsageDesk recovers automatically after sign-in.',
  'Claude·Codex 인증은 Windows 사용자 범위로 암호화됩니다. Grok 인증은 CLI와 공유하며, 만료 전 자동 갱신합니다.':
-     'Claude/Codex credentials are encrypted for this Windows user. Grok authentication is shared with the CLI and refreshes automatically before expiry.'}
+     'Claude/Codex credentials are encrypted for this Windows user. Grok authentication is shared with the CLI and refreshes automatically before expiry.',
+ '인증은 연결되어 있지만 서비스가 사용률을 제공하지 않았습니다. 초기화 시각만 표시합니다.':
+     'Authentication is connected, but the service omitted usage. Only the reset time is available.',
+ '사용률 미제공': 'Usage unavailable',
+ '조회 불가': 'Query unavailable',
+ '조회 대기': 'Waiting to query',
+ '{p0} · {p1}\n사용률 미제공 · 인증 연결됨': '{p0} · {p1}\nUsage unavailable · Authentication connected',
+ '인증 연결됨 · 서비스가 현재 사용률을 제공하지 않습니다.':
+     'Authentication connected · The service is not providing current usage.',
+ '마지막 인증·기간 조회': 'Last authentication/period check',
+ '{p0} · 사용률 미제공': '{p0} · Usage unavailable'}

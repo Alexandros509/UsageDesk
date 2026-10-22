@@ -33,10 +33,17 @@ def normalize_grok(body, now=None):
     snapshot = Snapshot(now or datetime.now(UTC))
     percent = config.get("creditUsagePercent")
     legacy = percent is None
+    partial = False
     if legacy:
         limit, used = config.get("monthlyLimit"), config.get("used")
         if not isinstance(limit, dict) or not isinstance(used, dict):
-            raise ProviderError("USAGE_UNAVAILABLE")
+            period = config.get('currentPeriod')
+            if (isinstance(period, dict) and period.get('end')
+                    and period.get('type') in {'USAGE_PERIOD_TYPE_WEEKLY', 'USAGE_PERIOD_TYPE_MONTHLY'}):
+                # A period-only response proves connection, not zero consumption.
+                partial, legacy = True, False
+            else:
+                raise ProviderError("USAGE_UNAVAILABLE")
 
         def cents(item):
             value = item.get("val", 0)  # An explicitly empty proto Cent represents zero.
@@ -46,11 +53,12 @@ def normalize_grok(body, now=None):
                 return int(value)
             raise ProviderError("PARSE_ERROR")
 
-        ceiling, consumed = cents(limit), cents(used)
-        if ceiling <= 0 or consumed < 0:
-            raise ProviderError("UNSUPPORTED")
-        percent = consumed / ceiling * 100
-    if type(percent) not in (int, float) or not math.isfinite(percent) or percent < 0:
+        if not partial:
+            ceiling, consumed = cents(limit), cents(used)
+            if ceiling <= 0 or consumed < 0:
+                raise ProviderError("UNSUPPORTED")
+            percent = consumed / ceiling * 100
+    if not partial and (type(percent) not in (int, float) or not math.isfinite(percent) or percent < 0):
         raise ProviderError("PARSE_ERROR")
     period = config.get("currentPeriod")
     if period is not None and not isinstance(period, dict):
@@ -72,6 +80,10 @@ def normalize_grok(body, now=None):
         except (AttributeError, TypeError, ValueError):
             snapshot.warnings.append(tr('초기화 시각 형식이 올바르지 않아 시각을 표시하지 않습니다.'))
             moment = None
+    if partial and moment is None:
+        raise ProviderError('USAGE_UNAVAILABLE')
+    if partial:
+        snapshot.warnings.append(tr('인증은 연결되어 있지만 서비스가 사용률을 제공하지 않았습니다. 초기화 시각만 표시합니다.'))
     snapshot.limits.append(QuotaLimit("account", title, percent, moment,
                                       604800 if weekly else None))
     snapshot.notes.append(tr('Grok CLI 인증 사용 · 만료 전 자동 갱신하며 갱신 불가 시 다시 로그인하세요.'))

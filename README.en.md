@@ -10,7 +10,7 @@
 
 UsageDesk is a Windows desktop utility that shows Claude, Codex and Grok usage and reset times, and opens programs, HTML pages and documents from the same bar.
 
-Windows 11 · Python 3.13 · PySide6 · **0.1.0a21 / Alpha** · [MIT](LICENSE)
+Windows 11 · Python 3.13 · PySide6 · **0.1.0a22 / Alpha** · [MIT](LICENSE)
 
 ![UsageDesk toolbar in dark mode](docs/images/toolbar-dark-en.png)
 
@@ -110,6 +110,8 @@ Connect the default personal account of the official [Grok Build CLI](https://gi
 
 Grok shows the account's combined usage limit. It does not sum per-conversation token counts or API spending. If a successful response omits usage values, the app retains the last successful snapshot, labels it as previous data, and retries at the normal three-minute interval. Manual refresh becomes available after the standard ten-second cooldown. Missing data is never treated as 0% usage; server rate limits still enforce their required wait.
 
+When Grok supplies only the authenticated billing period, the bar keeps `—` and the reset time. This does not mean 0% or 100% remaining. Details distinguish connected authentication from missing usage. A previous value is retained only for the same period; values from an older period are not carried forward.
+
 These integrations are experimental and depend on each service's authentication and response formats. Service changes, account types or plans may limit authentication or usage retrieval.
 
 ## Usage tips
@@ -188,9 +190,9 @@ See the [release runbook](RUNBOOK.en.md) for preparation, publication review, Gi
 .\build.ps1
 ```
 
-Current validation: **339 automated tests**, Ruff and Windows EXE startup/shutdown checks. Coverage includes switching bar lengths back and forth, preserving reset-time display, top/bottom docking, restoration from tray mode, and registering, editing and opening web links in the default browser. This does not guarantee operation across every account, plan or PC environment.
+Current validation: **355 automated tests**, Ruff and Windows EXE startup/shutdown checks. Coverage includes switching bar lengths back and forth, preserving reset-time display, top/bottom docking, restoration from tray mode, and registering, editing and opening web links in the default browser. This does not guarantee operation across every account, plan or PC environment.
 
-Build output is written to `dist\0.1.0a21\UsageDesk\`. **Move the entire folder, not just the EXE.** Python/Qt notices and library replacement instructions are included. Run `python scripts/package_release.py` to produce binary and corresponding source ZIPs with checksums. This is an unsigned alpha build.
+Build output is written to `dist\0.1.0a22\UsageDesk\`. **Move the entire folder, not just the EXE.** Python/Qt notices and library replacement instructions are included. Run `python scripts/package_release.py` to produce binary and corresponding source ZIPs with checksums. This is an unsigned alpha build.
 
 Regenerate README screenshots with the following command. It uses only an isolated directory and synthetic data:
 

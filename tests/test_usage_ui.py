@@ -186,7 +186,7 @@ def test_grok_missing_usage_keeps_previous_value_and_recovers(tmp_path, monkeypa
         pane.refresh('grok', True)
         pump(app, pane)
         assert pane.snapshots['grok'] is previous
-        assert '현재 사용량 값이 없습니다' in pane.cards['grok'][0].text()
+        assert '인증 연결됨' in pane.cards['grok'][0].text()
         assert '다음 자동 조회' in pane.cards['grok'][0].text()
         assert pane.cards['grok'][2][0].isEnabled()
         pane.policies['grok'].last_start -= 11
@@ -206,7 +206,8 @@ def test_grok_missing_usage_keeps_previous_value_and_recovers(tmp_path, monkeypa
         app.processEvents()
 
 
-def test_grok_cli_relogin_automatically_resumes_halted_controller(tmp_path, monkeypatch):
+@pytest.mark.parametrize('error_code', ['AUTH_REQUIRED', 'STORAGE_ERROR', 'REQUEST_REJECTED'])
+def test_grok_cli_relogin_automatically_resumes_halted_controller(tmp_path, monkeypatch, error_code):
     from usagedesk.grok_auth import GrokAuthStore
 
     app = QApplication.instance() or QApplication([])
@@ -219,7 +220,7 @@ def test_grok_cli_relogin_automatically_resumes_halted_controller(tmp_path, monk
     calls = []
     def fail(_):
         calls.append('expired')
-        raise ProviderError('AUTH_REQUIRED')
+        raise ProviderError(error_code)
     monkeypatch.setattr(session, 'fetch', fail)
     try:
         pane.refresh('grok')
@@ -242,6 +243,58 @@ def test_grok_cli_relogin_automatically_resumes_halted_controller(tmp_path, monk
         session.auth_store.path.write_text('{}', 'utf-8')
         pane.tick()
         assert not pane.tasks  # Explicitly disconnected accounts stay disconnected.
+    finally:
+        pane.shutdown()
+        pane.pool.waitForDone()
+        pane.deleteLater()
+        app.processEvents()
+
+
+@pytest.mark.parametrize('previous_period', ['same', 'old', 'none'])
+def test_grok_partial_billing_preserves_same_period_value_and_renders_reset(tmp_path, monkeypatch, previous_period):
+    from datetime import timedelta
+
+    from PySide6.QtWidgets import QLabel, QProgressBar
+
+    from usagedesk.grok_auth import GrokAuthStore
+
+    app = QApplication.instance() or QApplication([])
+    pane = UsagePane(tmp_path, autoload=False)
+    session = pane.sessions['grok']
+    session.tokens = True
+    session.auth_store = GrokAuthStore(tmp_path / 'fake-auth.json')
+    pane.policies['grok'].reconnect()
+    reset = datetime.now(UTC) + timedelta(days=2)
+    if previous_period != 'none':
+        before = Snapshot(datetime.now(UTC), [QuotaLimit('account', '주간 한도', 73,
+                          reset if previous_period == 'same' else reset - timedelta(days=7), 604800)])
+        pane.snapshots['grok'] = before
+    partial = Snapshot(datetime.now(UTC), [QuotaLimit('account', '주간 한도', None, reset, 604800)])
+    monkeypatch.setattr(session, 'fetch', lambda _: partial)
+    try:
+        pane.refresh('grok')
+        pump(app, pane)
+        assert pane.errors['grok'] == 'USAGE_UNAVAILABLE'
+        assert not pane.policies['grok'].halted
+        assert '인증 연결됨' in pane.cards['grok'][0].text()
+        if previous_period == 'same':
+            assert pane.snapshots['grok'] is before
+            assert '이전 데이터' in pane.cards['grok'][0].text()
+        else:
+            assert pane.snapshots['grok'] is partial
+            assert '마지막 인증·기간 조회' in pane.cards['grok'][0].text()
+            layout = pane.cards['grok'][1]
+            widgets = [layout.itemAt(i).widget() for i in range(layout.count())]
+            assert not any(isinstance(item, QProgressBar) for item in widgets)
+            labels = [item.text() for item in widgets if isinstance(item, QLabel)]
+            assert any('초기화' in text for text in labels)
+            assert not any('0%' in text for text in labels)
+        pane.policies['grok'].last_start -= 11
+        current = Snapshot(datetime.now(UTC), [QuotaLimit('account', '주간 한도', 12, reset, 604800)])
+        monkeypatch.setattr(session, 'fetch', lambda _: current)
+        pane.refresh('grok', True)
+        pump(app, pane)
+        assert pane.snapshots['grok'] is current and 'grok' not in pane.errors
     finally:
         pane.shutdown()
         pane.pool.waitForDone()

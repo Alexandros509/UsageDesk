@@ -352,8 +352,8 @@ class UsagePane(QWidget):
 
     def tick(self):
         if not self.closed:
-            if (self.errors.get('grok') == 'AUTH_REQUIRED' and self.sessions['grok'].tokens is not None
-                    and self.policies['grok'].halted and 'grok' not in self.tasks):
+            if (self.errors.get('grok') and self.sessions['grok'].tokens is not None
+                    and 'grok' not in self.tasks):
                 revision = self.sessions['grok'].auth_store.revision()
                 if revision is not None and revision != self.grok_auth_revision:
                     self.grok_auth_revision = revision
@@ -378,19 +378,28 @@ class UsagePane(QWidget):
                 self.refresh(key)
         else:
             policy = self.policies[key]
+            partial = (key == 'grok' and not error and value.limits
+                       and all(q.used_percent is None for q in value.limits))
             policy.finish(
                 policy.generation,
                 time.monotonic(),
-                error.code if error else None,
+                error.code if error else 'USAGE_UNAVAILABLE' if partial else None,
                 error.retry_after if error else None,
                 random.uniform(0, 5),
             )
             if error:
                 self.errors[key] = error.code
-                if key == 'grok' and error.code == 'AUTH_REQUIRED':
+                if key == 'grok':
                     self.grok_auth_revision = self.sessions['grok'].auth_store.revision()
                 if error.code in {"STORAGE_ERROR", "REQUEST_REJECTED"}:
                     policy.halted = True
+            elif partial:
+                self.errors[key] = 'USAGE_UNAVAILABLE'
+                self.grok_auth_revision = self.sessions['grok'].auth_store.revision()
+                previous = self.snapshots.get(key)
+                same_period = previous and [q.reset_at_utc for q in previous.limits] == [q.reset_at_utc for q in value.limits]
+                if not same_period or not any(q.used_percent is not None for q in previous.limits):
+                    self.snapshots[key] = value
             else:
                 self.errors.pop(key, None)
                 self.snapshots[key] = value
@@ -407,6 +416,8 @@ class UsagePane(QWidget):
             )
             if key == "grok" and error == "AUTH_REQUIRED":
                 text = tr('Grok 인증을 자동 갱신할 수 없습니다. 로그인 / 다시 연결에서 CLI 로그인하세요. 로그인 후 자동 복구됩니다.')
+            if key == 'grok' and error == 'USAGE_UNAVAILABLE':
+                text = tr('인증 연결됨 · 서비스가 현재 사용률을 제공하지 않습니다.')
             if key in self.tasks:
                 text = tr('인증·사용량 확인 중…')
             if policy.retry_at > time.monotonic():
@@ -417,7 +428,9 @@ class UsagePane(QWidget):
             if snapshot:
                 age = (now - snapshot.fetched_at).total_seconds()
                 stale = bool(error) or age > 360
-                text += f"\n{tr('이전 데이터') if stale else tr('마지막 성공 조회')} · {snapshot.fetched_at.astimezone():%m-%d %H:%M:%S}"
+                prefix = (tr('마지막 인증·기간 조회') if snapshot.limits and all(q.used_percent is None for q in snapshot.limits)
+                          else tr('이전 데이터') if stale else tr('마지막 성공 조회'))
+                text += f"\n{prefix} · {snapshot.fetched_at.astimezone():%m-%d %H:%M:%S}"
             status.setText(text)
             buttons[0].setEnabled(key not in self.tasks and
                                   (error != "RATE_LIMITED" or time.monotonic() >= policy.retry_at))
@@ -438,12 +451,14 @@ class UsagePane(QWidget):
             for quota in snapshot.limits:
                 percent = quota.used_percent
                 layout.addWidget(
-                    label(tr('{p0} · 사용 {p1:g}% · 남음 {p2:g}%', p0=quota.label, p1=percent, p2=quota.remaining_percent))
+                    label(tr('{p0} · 사용률 미제공', p0=quota.label) if percent is None else
+                          tr('{p0} · 사용 {p1:g}% · 남음 {p2:g}%', p0=quota.label, p1=percent, p2=quota.remaining_percent))
                 )
-                bar = QProgressBar()
-                bar.setValue(round(min(percent, 100)))
-                bar.setTextVisible(False)
-                layout.addWidget(bar)
+                if percent is not None:
+                    bar = QProgressBar()
+                    bar.setValue(round(min(percent, 100)))
+                    bar.setTextVisible(False)
+                    layout.addWidget(bar)
                 if quota.reset_at_utc:
                     seconds = (quota.reset_at_utc - now).total_seconds()
                     remaining = (
