@@ -6,6 +6,10 @@ multi-resolution ICO packaged with scripts/package_icon.py. Provenance, prompt,
 and attribution: [Third-party notices](../../../THIRD_PARTY_NOTICES.md).
 This is separate from the service logos.
 
+`grokbot.svg` is a simplified vector identification mark drawn for this project
+from the user-supplied Grok Bot reference. It is not a downloaded official asset.
+The name and visual identity remain their owner's trademarks.
+
 Current vector source: lobehub/lobe-icons, commit 82e641b4fece9d1028a127149af9ded00df5ac0c.
 
 - claude.svg: packages/static-svg/icons/claude.svg

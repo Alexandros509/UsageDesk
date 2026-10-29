@@ -15,7 +15,7 @@ from usagedesk.providers import Snapshot, Tokens
 from usagedesk.usage_ui import GrokLoginDialog, LoginDialog, UsagePane
 
 
-@pytest.mark.parametrize("provider", ["claude", "codex", "grok"])
+@pytest.mark.parametrize("provider", ["claude", "codex", "grok", 'grokbot'])
 @pytest.mark.parametrize("index,method,arguments", [
     (0, "login", ()), (1, "refresh", (True,)), (2, "disconnect", ()),
 ])
@@ -43,6 +43,193 @@ def pump(app, pane):
         app.processEvents()
         time.sleep(0.01)
     assert not pane.tasks
+
+
+def test_grokbot_web_dialog_connects_restores_and_disconnects(tmp_path, monkeypatch):
+    import httpx
+
+    from usagedesk.grokbot import USAGE_URL
+    from usagedesk.providers import Transport
+    from usagedesk.usage_ui import GrokBotLoginDialog
+    app = QApplication.instance() or QApplication([])
+    pane = UsagePane(tmp_path, autoload=False)
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        return httpx.Response(200, json={'usagePercent': 38,
+                                        'nextResetTimestampUtc': '2026-11-03T12:00:00Z'})
+
+    transport = Transport(lambda **kw: httpx.Client(transport=httpx.MockTransport(handler), **kw))
+    pane.sessions['grokbot'].transport = transport
+    failures = []
+
+    def interact():
+        dialog = app.activeModalWidget()
+        try:
+            assert isinstance(dialog, GrokBotLoginDialog)
+            dialog.tabs.setCurrentIndex(1)
+            assert dialog.session_input.echoMode() == dialog.session_input.EchoMode.Password
+            dialog.session_input.setText('test-user%3A%3Aa.b.c')
+            dialog.accept()
+            assert not dialog.session_input.text()
+        except Exception as exc:
+            failures.append(exc)
+            if dialog:
+                dialog.reject()
+
+    try:
+        QTimer.singleShot(0, interact)
+        QTest.mouseClick(pane.cards['grokbot'][2][0], Qt.LeftButton)
+        pump(app, pane)
+        assert not failures
+        assert len(requests) == 1 and str(requests[0].url) == USAGE_URL
+        assert pane.snapshots['grokbot'].limits[0].used_percent == 38
+        assert '로그인' not in pane.cards['grokbot'][0].text()
+        pane.sessions['grokbot'].reset()
+        pane.snapshots.clear()
+        pane.restore('grokbot')
+        pump(app, pane)
+        assert pane.snapshots['grokbot'].limits[0].remaining_percent == 62
+        pane.disconnect('grokbot')
+        assert pane.sessions['grokbot'].tokens is None and 'grokbot' not in pane.snapshots
+        assert not (tmp_path / 'secrets' / 'grokbot.dpapi').exists()
+    finally:
+        pane.shutdown()
+        pane.pool.waitForDone()
+        pane.deleteLater()
+        app.processEvents()
+
+
+def test_grokbot_invalid_input_and_cancel_never_link_or_keep_secret(tmp_path):
+    from usagedesk.usage_ui import GrokBotLoginDialog
+    app = QApplication.instance() or QApplication([])
+    dialog = GrokBotLoginDialog()
+    try:
+        dialog.tabs.setCurrentIndex(1)
+        dialog.session_input.setText('invalid-cookie')
+        dialog.accept()
+        assert dialog.result() != dialog.DialogCode.Accepted and dialog.source is None
+        assert '형식' in dialog.status.text()
+        dialog.reject()
+        assert dialog.cookie == '' and dialog.session_input.text() == ''
+    finally:
+        dialog.deleteLater()
+        app.processEvents()
+
+
+def test_grokbot_auth_failure_keeps_previous_usage_and_stops_polling(tmp_path, monkeypatch):
+    app = QApplication.instance() or QApplication([])
+    pane = UsagePane(tmp_path, autoload=False)
+    session = pane.sessions['grokbot']
+    session.tokens, session.source = True, 'session'
+    pane.policies['grokbot'].reconnect()
+    snapshot = Snapshot(datetime.now(UTC), [QuotaLimit('weekly', '주간 한도', 38)])
+    pane.snapshots['grokbot'] = snapshot
+    called = []
+
+    def fail(_):
+        called.append(True)
+        raise ProviderError('AUTH_REQUIRED')
+
+    monkeypatch.setattr(session, 'fetch', fail)
+    try:
+        pane.refresh('grokbot')
+        pump(app, pane)
+        assert pane.snapshots['grokbot'] is snapshot
+        assert pane.policies['grokbot'].halted
+        assert '만료' in pane.cards['grokbot'][0].text()
+        for _ in range(3):
+            pane.tick()
+        assert called == [True]
+    finally:
+        pane.shutdown()
+        pane.pool.waitForDone()
+        pane.deleteLater()
+        app.processEvents()
+
+
+def test_grokbot_unlinked_startup_does_not_read_other_app_credentials(tmp_path, monkeypatch):
+    import usagedesk.grokbot as grokbot
+    app = QApplication.instance() or QApplication([])
+    calls = []
+    monkeypatch.setattr(grokbot, 'read_cursor_session', lambda _: calls.append(True))
+    pane = UsagePane(tmp_path, autoload=False)
+    try:
+        pane.restore('grokbot')
+        pump(app, pane)
+        assert not calls and pane.sessions['grokbot'].tokens is None
+    finally:
+        pane.shutdown()
+        pane.pool.waitForDone()
+        pane.deleteLater()
+        app.processEvents()
+
+
+@pytest.mark.parametrize('error_code,recover', [('AUTH_REQUIRED', True), ('RATE_LIMITED', False)])
+def test_grokbot_local_signin_change_recovers_auth_but_never_bypasses_rate_limit(
+        tmp_path, monkeypatch, error_code, recover):
+    app = QApplication.instance() or QApplication([])
+    pane = UsagePane(tmp_path, autoload=False)
+    session = pane.sessions['grokbot']
+    session.tokens, session.source = True, 'cursor'
+    revision, calls = [1], []
+    monkeypatch.setattr(session, 'revision', lambda: tuple(revision))
+    snapshot = Snapshot(datetime.now(UTC), [QuotaLimit('weekly', '주간 한도', 38)])
+
+    def fetch(_):
+        calls.append(True)
+        if len(calls) == 1:
+            raise ProviderError(error_code, 75 if error_code == 'RATE_LIMITED' else None)
+        return snapshot
+
+    monkeypatch.setattr(session, 'fetch', fetch)
+    pane.policies['grokbot'].reconnect()
+    try:
+        pane.refresh('grokbot')
+        pump(app, pane)
+        revision[0] = 2
+        pane.policies['grokbot'].last_start -= 11
+        pane.tick()
+        pump(app, pane)
+        assert len(calls) == (2 if recover else 1)
+        if recover:
+            assert pane.snapshots['grokbot'] is snapshot and 'grokbot' not in pane.errors
+        else:
+            assert pane.errors['grokbot'] == 'RATE_LIMITED'
+    finally:
+        pane.shutdown()
+        pane.pool.waitForDone()
+        pane.deleteLater()
+        app.processEvents()
+
+
+@pytest.mark.parametrize('same_period', [True, False])
+def test_grokbot_partial_response_does_not_reuse_old_period_percentage(
+        tmp_path, monkeypatch, same_period):
+    from datetime import timedelta
+    app = QApplication.instance() or QApplication([])
+    pane = UsagePane(tmp_path, autoload=False)
+    session = pane.sessions['grokbot']
+    session.tokens, session.source = True, 'session'
+    reset = datetime.now(UTC) + timedelta(days=5)
+    previous = Snapshot(datetime.now(UTC), [QuotaLimit('weekly', '주간 한도', 38,
+                        reset if same_period else reset - timedelta(days=7), 604800)])
+    partial = Snapshot(datetime.now(UTC), [QuotaLimit('weekly', '주간 한도', None, reset, 604800)])
+    pane.snapshots['grokbot'] = previous
+    monkeypatch.setattr(session, 'fetch', lambda _: partial)
+    pane.policies['grokbot'].reconnect()
+    try:
+        pane.refresh('grokbot')
+        pump(app, pane)
+        assert pane.snapshots['grokbot'] is (previous if same_period else partial)
+        assert pane.errors['grokbot'] == 'USAGE_UNAVAILABLE'
+        assert not pane.policies['grokbot'].halted
+    finally:
+        pane.shutdown()
+        pane.pool.waitForDone()
+        pane.deleteLater()
+        app.processEvents()
 
 
 @pytest.mark.parametrize("provider", ["claude", "codex"])

@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QProgressBar,
     QPushButton,
     QScrollArea,
+    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -24,11 +25,14 @@ from PySide6.QtWidgets import (
 from .credentials import CredentialVault
 from .domain import RefreshPolicy
 from .grok import GROK_CLI, GrokSession
+from .grokbot import DASHBOARD_URL, GrokBotSession, session_cookie
 from .i18n import tr
 from .oauth import CONFIGS, MANUAL_REDIRECT, LoopbackLogin, ProviderError, Transaction
 from .providers import AccountSession
 
 MESSAGES = {
+    'INVALID_SESSION': tr('웹 세션 형식이 올바르지 않습니다. 세션 쿠키 값 하나만 입력하세요.'),
+    'LOCAL_AUTH_MISSING': tr('로컬 Cursor 로그인을 찾지 못했습니다. 같은 계정으로 Cursor에 로그인하거나 웹 세션으로 연결하세요.'),
     'AUTH_BUSY': tr('Grok CLI가 인증을 갱신 중입니다. 잠시 후 자동 재시도합니다.'),
     "AUTH_REQUIRED": tr('인증이 만료되었습니다. 다시 로그인하세요.'),
     "AUTH_DENIED": tr('로그인 승인이 취소되었습니다.'),
@@ -211,6 +215,61 @@ class GrokLoginDialog(QDialog):
             self.status.setText(tr('Grok CLI를 실행할 수 없습니다. 위 설치 경로를 확인하세요.'))
 
 
+class GrokBotLoginDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.source, self.cookie = None, ''
+        self.setWindowTitle(tr('Grok Bot 계정 연결'))
+        self.resize(660, 420)
+        layout = QVBoxLayout(self)
+        layout.addWidget(label(tr('Grok Bot에서 사용하는 Cursor 계정의 주간 한도를 연결합니다. 기존 Grok CLI 연결과는 별도입니다.')))
+        self.tabs = QTabWidget()
+        local = QWidget()
+        local_layout = QVBoxLayout(local)
+        local_layout.addWidget(label(tr('같은 계정으로 이 PC의 Cursor에 로그인한 경우 사용합니다. 연결 후 조회할 때 로그인 항목 하나만 읽습니다. 원본 로그인·대화·설정은 변경하지 않습니다.')))
+        local_layout.addStretch()
+        self.tabs.addTab(local, tr('로컬 Cursor 로그인'))
+        web = QWidget()
+        web_layout = QVBoxLayout(web)
+        web_layout.addWidget(label(tr('1. 웹 사용량 페이지를 열어 Grok Bot과 같은 계정으로 로그인하세요.\n2. 브라우저 개발자 도구의 Application → Cookies → cursor.com에서 WorkosCursorSessionToken 값만 복사하세요.\n3. 아래에 붙여 넣고 연결하세요. 쿠키는 비밀번호처럼 비밀로 관리하고 채팅에 보내지 마세요.')))
+        self.session_input = QLineEdit()
+        self.session_input.setEchoMode(QLineEdit.Password)
+        self.session_input.setMaxLength(16384)
+        self.session_input.setPlaceholderText(tr('세션 쿠키 값 · 입력은 숨겨집니다'))
+        web_layout.addWidget(self.session_input)
+        web_layout.addWidget(label(tr('입력한 세션은 이 Windows 사용자만 복호화할 수 있게 저장합니다. 만료 시 웹에서 새 값을 연결해야 합니다.')))
+        web_layout.addStretch()
+        self.tabs.addTab(web, tr('웹 세션'))
+        layout.addWidget(self.tabs)
+        self.status = label()
+        layout.addWidget(self.status)
+        self.open_button = QPushButton(tr('웹 사용량 페이지 열기'))
+        self.open_button.clicked.connect(self.open_dashboard)
+        layout.addWidget(self.open_button)
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.button(QDialogButtonBox.Ok).setText(tr('선택한 방식으로 연결'))
+        buttons.button(QDialogButtonBox.Cancel).setText(tr('취소'))
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+        self.finished.connect(lambda *_: self.session_input.clear())
+
+    def open_dashboard(self):
+        if not QDesktopServices.openUrl(QUrl(DASHBOARD_URL)):
+            self.status.setText(tr('브라우저를 열 수 없습니다. 기본 브라우저 설정을 확인하세요.'))
+
+    def accept(self):
+        source = 'cursor' if self.tabs.currentIndex() == 0 else 'session'
+        try:
+            cookie = session_cookie(self.session_input.text()) if source == 'session' else ''
+        except ProviderError as exc:
+            self.status.setText(MESSAGES[exc.code])
+            return
+        self.source, self.cookie = source, cookie
+        self.session_input.clear()
+        super().accept()
+
+
 class UsagePane(QWidget):
     changed = Signal()
 
@@ -218,10 +277,12 @@ class UsagePane(QWidget):
         super().__init__(parent)
         self.sessions = {key: AccountSession(key, CredentialVault(directory)) for key in CONFIGS}
         self.sessions["grok"] = GrokSession(CredentialVault(directory))
+        self.sessions['grokbot'] = GrokBotSession(CredentialVault(directory))
         self.policies = {key: RefreshPolicy() for key in self.sessions}
         self.snapshots = {}
         self.errors = {}
         self.grok_auth_revision = None
+        self.grokbot_auth_revision = None
         self.tasks = {}
         self.closed = False
         self.cards = {}
@@ -230,7 +291,7 @@ class UsagePane(QWidget):
         layout = QVBoxLayout(self)
         layout.addWidget(
             label(
-                tr('Claude · Codex · Grok 사용량 — 실험적 연동\nCodex는 ChatGPT 계정의 코딩 사용 한도입니다. Grok은 CLI 계정의 사용 한도를 조회합니다.')
+                tr('Claude · Codex · Grok · Grok Bot 사용량 — 실험적 연동\nCodex는 ChatGPT 코딩 한도, Grok은 CLI 계정 한도, Grok Bot은 웹 계정의 주간 한도를 조회합니다.')
             )
         )
         scroll = QScrollArea()
@@ -239,6 +300,7 @@ class UsagePane(QWidget):
         cards_layout = QVBoxLayout(content)
         names = {key: config.label for key, config in CONFIGS.items()}
         names["grok"] = tr('Grok · CLI 계정')
+        names['grokbot'] = tr('Grok Bot · 웹 계정')
         for key, name in names.items():
             card = QGroupBox(name)
             card_layout = QVBoxLayout(card)
@@ -268,7 +330,7 @@ class UsagePane(QWidget):
         layout.addWidget(scroll)
         layout.addWidget(
             label(
-                tr('Claude·Codex 인증은 Windows 사용자 범위로 암호화됩니다. Grok 인증은 CLI와 공유하며, 만료 전 자동 갱신합니다.')
+                tr('Claude·Codex·Grok Bot 웹 세션은 Windows 사용자 범위로 암호화됩니다. Grok CLI 인증은 CLI와 공유하며 만료 전 갱신합니다. Grok Bot 로컬 연결은 연결 여부만 저장합니다.')
             )
         )
         self.timer = QTimer(self)
@@ -297,9 +359,12 @@ class UsagePane(QWidget):
         if key in self.tasks or (self.errors.get(key) == "RATE_LIMITED" and
                                 time.monotonic() < self.policies[key].retry_at):
             return
-        if key == "grok":
-            dialog = GrokLoginDialog(self)
+        if key in {'grok', 'grokbot'}:
+            dialog = GrokLoginDialog(self) if key == 'grok' else GrokBotLoginDialog(self)
             accepted = dialog.exec() == QDialog.Accepted
+            source, cookie = (dialog.source, dialog.cookie) if key == 'grokbot' else (None, '')
+            if key == 'grokbot':
+                dialog.cookie = ''
             dialog.deleteLater()
             if accepted:
                 session = self.sessions[key]
@@ -308,7 +373,10 @@ class UsagePane(QWidget):
                 self.errors.pop(key, None)
                 self.policies[key].reconnect()
                 self.policies[key].begin(time.monotonic(), True)
-                self.submit(key, "fetch", lambda: session.connect(epoch))
+                if key == 'grokbot':
+                    self.submit(key, 'fetch', lambda: session.connect(epoch, source, cookie))
+                else:
+                    self.submit(key, "fetch", lambda: session.connect(epoch))
             return
         self.policies[key].disconnect()
         session = self.sessions[key]
@@ -358,6 +426,16 @@ class UsagePane(QWidget):
                 if revision is not None and revision != self.grok_auth_revision:
                     self.grok_auth_revision = revision
                     self.policies['grok'].reconnect()
+            bot = self.sessions['grokbot']
+            if (self.errors.get('grokbot') in {'AUTH_REQUIRED', 'LOCAL_AUTH_MISSING',
+                                              'INVALID_SESSION', 'STORAGE_ERROR'}
+                    and bot.tokens is not None and bot.source == 'cursor'
+                    and 'grokbot' not in self.tasks
+                    and time.monotonic() - self.policies['grokbot'].last_start >= 10):
+                revision = bot.revision()
+                if revision is not None and revision != self.grokbot_auth_revision:
+                    self.grokbot_auth_revision = revision
+                    self.policies['grokbot'].reconnect()
             for key in self.sessions:
                 self.refresh(key)
             self.render()
@@ -378,7 +456,7 @@ class UsagePane(QWidget):
                 self.refresh(key)
         else:
             policy = self.policies[key]
-            partial = (key == 'grok' and not error and value.limits
+            partial = (key in {'grok', 'grokbot'} and not error and value.limits
                        and all(q.used_percent is None for q in value.limits))
             policy.finish(
                 policy.generation,
@@ -391,11 +469,16 @@ class UsagePane(QWidget):
                 self.errors[key] = error.code
                 if key == 'grok':
                     self.grok_auth_revision = self.sessions['grok'].auth_store.revision()
-                if error.code in {"STORAGE_ERROR", "REQUEST_REJECTED"}:
+                if key == 'grokbot':
+                    self.grokbot_auth_revision = self.sessions[key].revision()
+                if error.code in {"STORAGE_ERROR", "REQUEST_REJECTED", 'LOCAL_AUTH_MISSING', 'INVALID_SESSION'}:
                     policy.halted = True
             elif partial:
                 self.errors[key] = 'USAGE_UNAVAILABLE'
-                self.grok_auth_revision = self.sessions['grok'].auth_store.revision()
+                if key == 'grok':
+                    self.grok_auth_revision = self.sessions['grok'].auth_store.revision()
+                else:
+                    self.grokbot_auth_revision = self.sessions[key].revision()
                 previous = self.snapshots.get(key)
                 same_period = previous and [q.reset_at_utc for q in previous.limits] == [q.reset_at_utc for q in value.limits]
                 if not same_period or not any(q.used_percent is not None for q in previous.limits):
@@ -416,7 +499,9 @@ class UsagePane(QWidget):
             )
             if key == "grok" and error == "AUTH_REQUIRED":
                 text = tr('Grok 인증을 자동 갱신할 수 없습니다. 로그인 / 다시 연결에서 CLI 로그인하세요. 로그인 후 자동 복구됩니다.')
-            if key == 'grok' and error == 'USAGE_UNAVAILABLE':
+            if key == 'grokbot' and error == 'AUTH_REQUIRED':
+                text = tr('Grok Bot 웹 인증이 만료되었습니다. 같은 계정으로 로그인한 뒤 다시 연결하세요.')
+            if key in {'grok', 'grokbot'} and error == 'USAGE_UNAVAILABLE':
                 text = tr('인증 연결됨 · 서비스가 현재 사용률을 제공하지 않습니다.')
             if key in self.tasks:
                 text = tr('인증·사용량 확인 중…')

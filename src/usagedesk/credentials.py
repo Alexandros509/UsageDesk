@@ -15,7 +15,7 @@ class CredentialVault:
         self.directory = directory / "secrets"
 
     def _path(self, provider: str) -> Path:
-        if provider not in CONFIGS and provider != "grok":
+        if provider not in CONFIGS and provider not in {"grok", "grokbot"}:
             raise ProviderError("STORAGE_ERROR")
         return self.directory / f"{provider}.dpapi"
 

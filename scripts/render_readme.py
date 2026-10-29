@@ -57,6 +57,10 @@ for provider, values in (("claude", (42, 68)), ("codex", (18, 54))):
 window.usage.snapshots["grok"] = Snapshot(now, [
     QuotaLimit("account", ("Combined weekly limit" if args.language == "en" else "통합 주간 한도"), 35, now + timedelta(hours=23, minutes=45), 604800),
 ])
+window.usage.snapshots['grokbot'] = Snapshot(now, [
+    QuotaLimit('weekly', ('Weekly allowance' if args.language == 'en' else '주간 한도'),
+               38, now + timedelta(days=5), 604800),
+])
 window.usage.render()
 for card in window.usage.cards.values():
     card[0].setText("Example data · No real account" if args.language == "en" else "예시 데이터 · 실제 계정과 무관")
@@ -103,6 +107,13 @@ link_dialog.show()
 app.processEvents()
 link_dialog.grab().save(str(output / ("web-link" + ("-en" if args.language == "en" else "") + ".png")))
 link_dialog.reject()
+from usagedesk.usage_ui import GrokBotLoginDialog  # noqa: E402
+
+bot_dialog = GrokBotLoginDialog(window)
+bot_dialog.show()
+app.processEvents()
+bot_dialog.grab().save(str(output / ('grokbot-connect' + ('-en' if args.language == 'en' else '') + '.png')))
+bot_dialog.reject()
 window.entries += [LauncherEntry(f"Project Workspace {i}", rf"C:\UsageDeskDemo\{i}.html",
                                 r"C:\UsageDeskDemo") for i in range(8)]
 window.bar.options = replace(window.bar.options, programs=tuple(e.id for e in window.entries))
@@ -115,4 +126,4 @@ window.usage.shutdown()
 window.usage.pool.waitForDone()
 window.bar.hide()
 window.hide()
-print("Rendered 8 README screenshots with isolated synthetic data.")
+print("Rendered 9 README screenshots with isolated synthetic data.")

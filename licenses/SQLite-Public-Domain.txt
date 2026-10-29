@@ -1,0 +1,17 @@
+SQLite 3.50.4
+
+The Windows bundle uses the unmodified SQLite library distributed with the
+official CPython runtime. SQLite's deliverable library is dedicated to the
+public domain by its authors.
+
+Official copyright statement: https://sqlite.org/copyright.html
+Official source: https://sqlite.org/src/
+
+The source's traditional dedication reads:
+
+The author disclaims copyright to this source code. In place of a legal notice,
+here is a blessing:
+
+    May you do good and not evil.
+    May you find forgiveness for yourself and forgive others.
+    May you share freely, never taking more than you give.

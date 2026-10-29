@@ -51,6 +51,8 @@ If the build modifies tracked files, review and commit those changes, update the
 
 ## 4. Verify EXE behavior
 
+For Grok Bot, verify local Cursor/manual web-session connection, encrypted persistence, restart restoration and disconnect. It must take no bar space before connection. With dummy credentials, test 38% used/62% remaining, reset/hover/visibility, four-service overflow, stopping after 401 and honoring 429 wait periods. Do not report live account validation until values have been compared with the actual account.
+
 Use a unique test directory that cannot change real user settings.
 
 ```powershell

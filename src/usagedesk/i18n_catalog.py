@@ -626,4 +626,41 @@ EN = {'UsageDesk 사용량 바': 'UsageDesk usage bar',
  '인증 연결됨 · 서비스가 현재 사용률을 제공하지 않습니다.':
      'Authentication connected · The service is not providing current usage.',
  '마지막 인증·기간 조회': 'Last authentication/period check',
- '{p0} · 사용률 미제공': '{p0} · Usage unavailable'}
+ '{p0} · 사용률 미제공': '{p0} · Usage unavailable',
+ '웹 세션 형식이 올바르지 않습니다. 세션 쿠키 값 하나만 입력하세요.':
+     'Invalid web session format. Enter only the session cookie value.',
+ '로컬 Cursor 로그인을 찾지 못했습니다. 같은 계정으로 Cursor에 로그인하거나 웹 세션으로 연결하세요.':
+     'No local Cursor sign-in found. Sign in to Cursor with the same account or connect a web session.',
+ '요금제: {p0}': 'Plan: {p0}',
+ '통합 주간 한도': 'Shared weekly allowance',
+ '공유 사용 한도입니다. 기존 Grok 게이지와 합산하지 않습니다.':
+     'This is a shared allowance. It is not added to the existing Grok gauge.',
+ '서비스에서 현재 사용 가능 한도가 없다고 응답했습니다.':
+     'The service reports no usage is currently available.',
+ '이 계정에는 포함된 Grok Bot 한도가 없습니다.':
+     'This account has no included Grok Bot allowance.',
+ 'Grok Bot 웹 계정 한도 · 웹 세션이 만료되면 다시 연결하세요.':
+     'Grok Bot web account allowance. Reconnect when the web session expires.',
+ 'Grok Bot 계정 연결': 'Connect Grok Bot account',
+ 'Grok Bot에서 사용하는 Cursor 계정의 주간 한도를 연결합니다. 기존 Grok CLI 연결과는 별도입니다.':
+     'Connect the weekly allowance of the Cursor account used by Grok Bot. This is separate from the Grok CLI connection.',
+ '같은 계정으로 이 PC의 Cursor에 로그인한 경우 사용합니다. 연결 후 조회할 때 로그인 항목 하나만 읽습니다. 원본 로그인·대화·설정은 변경하지 않습니다.':
+     'Use this if Cursor on this PC is signed in to the same account. Each query reads only its sign-in entry. The original login, conversations and settings are not changed.',
+ '로컬 Cursor 로그인': 'Local Cursor sign-in',
+ '1. 웹 사용량 페이지를 열어 Grok Bot과 같은 계정으로 로그인하세요.\n2. 브라우저 개발자 도구의 Application → Cookies → cursor.com에서 WorkosCursorSessionToken 값만 복사하세요.\n3. 아래에 붙여 넣고 연결하세요. 쿠키는 비밀번호처럼 비밀로 관리하고 채팅에 보내지 마세요.':
+     '1. Open the web usage page and sign in with the same account as Grok Bot.\n2. In browser developer tools, open Application → Cookies → cursor.com and copy only the WorkosCursorSessionToken value.\n3. Paste it below and connect. Treat the cookie like a password and never send it in chat.',
+ '세션 쿠키 값 · 입력은 숨겨집니다': 'Session cookie value · input is hidden',
+ '입력한 세션은 이 Windows 사용자만 복호화할 수 있게 저장합니다. 만료 시 웹에서 새 값을 연결해야 합니다.':
+     'The entered session is stored encrypted for this Windows user. Reconnect a new value from the website when it expires.',
+ '웹 세션': 'Web session',
+ '웹 사용량 페이지 열기': 'Open web usage page',
+ '선택한 방식으로 연결': 'Connect using selected method',
+ '브라우저를 열 수 없습니다. 기본 브라우저 설정을 확인하세요.':
+     'Could not open the browser. Check the default browser setting.',
+ 'Claude · Codex · Grok · Grok Bot 사용량 — 실험적 연동\nCodex는 ChatGPT 코딩 한도, Grok은 CLI 계정 한도, Grok Bot은 웹 계정의 주간 한도를 조회합니다.':
+     'Claude · Codex · Grok · Grok Bot usage — experimental integration\nCodex shows ChatGPT coding limits, Grok shows CLI account limits, and Grok Bot shows web account weekly limits.',
+ 'Grok Bot · 웹 계정': 'Grok Bot · Web account',
+ 'Claude·Codex·Grok Bot 웹 세션은 Windows 사용자 범위로 암호화됩니다. Grok CLI 인증은 CLI와 공유하며 만료 전 갱신합니다. Grok Bot 로컬 연결은 연결 여부만 저장합니다.':
+     'Claude/Codex credentials and Grok Bot web sessions are encrypted for this Windows user. Grok CLI authentication is shared with the CLI and renewed before expiry. Grok Bot local connections store only the link preference.',
+ 'Grok Bot 웹 인증이 만료되었습니다. 같은 계정으로 로그인한 뒤 다시 연결하세요.':
+     'Grok Bot web authentication has expired. Sign in to the same account and reconnect.'}

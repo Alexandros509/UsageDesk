@@ -5,6 +5,9 @@ import time
 from ctypes import wintypes
 from dataclasses import dataclass
 
+AI_EXECUTABLES = {'claude': {'claude.exe'}, 'codex': {'codex.exe'}, 'grok': {'grok.exe'},
+                  'grokbot': {'grok bot.exe', 'grokbot.exe'}}
+
 
 @dataclass(frozen=True)
 class Process:
@@ -94,11 +97,11 @@ class CpuMonitor:
         except OSError:
             self.reset()
             return {key: Reading(None, 'unavailable') for key in
-                    [*program_roots, *(['claude', 'codex', 'grok'] if ai else [])]}
+                    [*program_roots, *(AI_EXECUTABLES if ai else [])]}
         groups = {key: set(roots or ()) for key, roots in program_roots.items()}
         if ai:
-            for key in ('claude', 'codex', 'grok'):
-                groups[key] = {pid for pid, p in processes.items() if p.name == key + '.exe'}
+            for key, names in AI_EXECUTABLES.items():
+                groups[key] = {pid for pid, p in processes.items() if p.name in names}
         values = {}
         def times(pid):
             if pid not in values:

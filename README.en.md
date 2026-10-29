@@ -8,9 +8,9 @@
 
 **AI usage limits and your favorite programs and files, in one Windows toolbar.**
 
-UsageDesk is a Windows desktop utility that shows Claude, Codex and Grok usage and reset times, and opens programs, HTML pages and documents from the same bar.
+UsageDesk is a Windows desktop utility that shows Claude, Codex, Grok and Grok Bot usage and reset times, and opens programs, HTML pages and documents from the same bar.
 
-Windows 11 · Python 3.13 · PySide6 · **0.1.0a22 / Alpha** · [MIT](LICENSE)
+Windows 11 · Python 3.13 · PySide6 · **0.1.0a23 / Alpha** · [MIT](LICENSE)
 
 ![UsageDesk toolbar in dark mode](docs/images/toolbar-dark-en.png)
 
@@ -20,7 +20,7 @@ Windows 11 · Python 3.13 · PySide6 · **0.1.0a22 / Alpha** · [MIT](LICENSE)
 
 ## Features
 
-- **Three services in one place** — View limits for Claude, Codex associated with a ChatGPT account, and a Grok CLI account.
+- **Four services in one place** — View limits for Claude, Codex associated with a ChatGPT account, Grok CLI and Grok Bot web accounts.
 - **Used or remaining quota** — Switch both percentages and rings together.
 - **Time until reset** — Separate the quota window from the countdown, for example `7d │ Reset 23hr 44min`. Hover for the exact reset date, time and fetch status.
 - **Floating, top-docked, bottom-docked or tray-only** — Drag the floating bar, reserve desktop work area with a docked bar, or keep only the tray icon.
@@ -95,6 +95,20 @@ Click a gauge to open the details window. Selecting tray-only mode under display
 - These are local settings. Changing the language does not rename your programs or paths. Operating-system dialogs retain the Windows language.
 
 ## Connecting accounts
+
+**Grok Bot · added in 0.1.0a23**
+
+1. Open `Usage → Grok Bot · Web account → Sign in / Reconnect`.
+2. If Cursor on this PC is signed in to the same account as Grok Bot, choose **Local Cursor sign-in**. Only the sign-in entry is read; the database is never copied or changed. Renewed sign-ins are reread on subsequent queries.
+3. Otherwise choose **Web session → Open web usage page** and sign in to the same account. Follow the dialog to enter only the browser's `WorkosCursorSessionToken` in the hidden field. Never send the cookie in chat. Windows DPAPI encrypts the stored session; reconnect a new value when it expires.
+4. Connecting adds a Grok Bot icon and weekly gauge. Existing used/remaining, reset countdown, hover and limit visibility settings apply. It takes no bar space before connection or after disconnection.
+
+Grok Bot uses a different authentication and usage route from Grok CLI. Unified-plan responses are identified as a **Shared weekly allowance**; the two gauges are never added together. Omitted percentages display `—`. This experimental integration uses a web dashboard endpoint and has not been validated against every account type.
+
+<details>
+<summary>Grok Bot connection dialog</summary>
+<img src="docs/images/grokbot-connect-en.png" width="660" alt="Connection dialog with local Cursor and web session choices">
+</details>
 
 **Claude / Codex**
 
@@ -176,6 +190,7 @@ Long names use up to two lines. When space runs out, the bar **reduces padding �
 - Grok CLI manages `%USERPROFILE%\.grok\auth.json`. UsageDesk reads it per request and saves only the encrypted link preference in `secrets/grok.dpapi`.
 - Program paths and UI preferences live in local settings files, including `config.json`, `display.ini`, `hotkeys.json` and `language.json`. These are excluded from Git and release source archives.
 - Grok reads and renews the CLI's current credentials. Refresh tokens are sent only to the official `https://auth.x.ai/oauth2/token` endpoint. Rotated credentials atomically replace the CLI auth file with restricted access permissions. UsageDesk stores only the connection preference in its own vault, not a separate token copy.
+- Grok Bot manual web sessions are encrypted in `secrets/grokbot.dpapi`. Local Cursor connections store only the selected source and read one sign-in entry per query; browser cookie databases and Grok Bot conversations/vault are not extracted.
 - Requests go directly to the respective service. UsageDesk has no collection server or analytics telemetry.
 - Disconnecting removes the local connection. It does not revoke server tokens or sign out of the Grok CLI.
 
@@ -190,9 +205,9 @@ See the [release runbook](RUNBOOK.en.md) for preparation, publication review, Gi
 .\build.ps1
 ```
 
-Current validation: **355 automated tests**, Ruff and Windows EXE startup/shutdown checks. Coverage includes switching bar lengths back and forth, preserving reset-time display, top/bottom docking, restoration from tray mode, and registering, editing and opening web links in the default browser. This does not guarantee operation across every account, plan or PC environment.
+Current validation: **405 automated tests**, Ruff and Windows EXE startup/shutdown checks. Coverage includes switching bar lengths back and forth, preserving reset-time display, top/bottom docking, restoration from tray mode, and registering, editing and opening web links in the default browser. This does not guarantee operation across every account, plan or PC environment.
 
-Build output is written to `dist\0.1.0a22\UsageDesk\`. **Move the entire folder, not just the EXE.** Python/Qt notices and library replacement instructions are included. Run `python scripts/package_release.py` to produce binary and corresponding source ZIPs with checksums. This is an unsigned alpha build.
+Build output is written to `dist\0.1.0a23\UsageDesk\`. **Move the entire folder, not just the EXE.** Python/Qt notices and library replacement instructions are included. Run `python scripts/package_release.py` to produce binary and corresponding source ZIPs with checksums. This is an unsigned alpha build.
 
 Regenerate README screenshots with the following command. It uses only an isolated directory and synthetic data:
 
@@ -210,6 +225,7 @@ Regenerate README screenshots with the following command. It uses only an isolat
 
 ## References and acknowledgments
 
+- **[bcharleson/grokbot-usage-cli](https://github.com/bcharleson/grokbot-usage-cli)** — Reference for Grok Bot weekly usage/reset fields and the Cursor session format. MIT notice included.
 - **[f-is-h/Usage4Claude](https://github.com/f-is-h/Usage4Claude)** — Reference for the menu-bar monitor concept, Claude/Codex authentication protocols and response models. MIT notice preserved.
 - **[xai-org/grok-build](https://github.com/xai-org/grok-build)** — Reference for personal CLI account authentication and the billing response protocol. Apache-2.0 notice included.
 - **[lobehub/lobe-icons](https://github.com/lobehub/lobe-icons)** — Source of the Claude, OpenAI and Grok SVG logos. MIT notice included.

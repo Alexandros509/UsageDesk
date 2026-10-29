@@ -22,6 +22,16 @@ imply sponsorship or API compatibility guarantees.
 - Copyright 2023-2026 SpaceXAI, as stated in the referenced license.
 - Original license: [Grok-Build-Apache-2.0.txt](licenses/Grok-Build-Apache-2.0.txt). No root NOTICE file was found at this commit.
 
+## Grok Bot usage protocol reference — MIT
+
+- Repository: https://github.com/bcharleson/grokbot-usage-cli
+- Reviewed commit: `7e784a020595b6ce1a3e853c58d89fa5b7bbe898`
+- Reference: `cli/grokbot_usage.py`, `meter_grokbot` and Cursor session format.
+- Use: independently implemented Windows adapter for the dashboard's weekly percentage and reset timestamp; no downloaded CLI is installed or executed.
+- Copyright (c) 2026 grokbot-usage contributors.
+- Original license: [GrokBot-Usage-MIT.txt](licenses/GrokBot-Usage-MIT.txt).
+- Public response examples: https://github.com/steipete/CodexBar/issues/4545. No CodexBar source is included.
+
 ## Lobe Icons — MIT
 
 - Repository: https://github.com/lobehub/lobe-icons
@@ -33,6 +43,12 @@ imply sponsorship or API compatibility guarantees.
 - Brand names and marks belong to their respective owners. The license does not imply endorsement.
 
 ## Runtime dependencies and compiled distribution
+
+Starting with 0.1.0a23, the local Cursor sign-in reader uses Python's sqlite3
+module and the unmodified SQLite 3.50.4 DLL from the official CPython runtime.
+SQLite's deliverable library is public domain; see
+[SQLite-Public-Domain.txt](licenses/SQLite-Public-Domain.txt) and
+https://sqlite.org/copyright.html.
 
 Dependency versions and hashes are pinned in [uv.lock](uv.lock). The source
 checkout contains no installed dependencies or Python runtime. PySide6 Essentials
@@ -63,6 +79,10 @@ The app icon is based on an AI-generated concept supplied by the project owner,
 refined with imagegen for a transparent silhouette and packaged into ICO. The
 project contribution is covered by the root license to the extent rights can be
 granted; no exclusive rights in AI-generated output or service marks are asserted.
+
+`grokbot.svg` is an original simplified vector identification mark based on the
+user's supplied Grok Bot screenshot. It is not an extracted official logo asset.
+Grok Bot's name and visual identity belong to their respective owners.
 
 README screenshots render real Qt widgets with synthetic quota values, fictional
 paths and an isolated data directory. They contain no real account credentials

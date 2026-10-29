@@ -84,3 +84,16 @@ def test_old_orphan_is_not_child_of_reused_parent_pid():
     monitor = CpuMonitor(backend)
     monitor.sample({'program': {10}}, ai=False)
     assert monitor.known['program'] == {(10, 300)}
+
+
+def test_grokbot_cpu_counts_only_its_local_process_and_children():
+    backend = Backend()
+    backend.rows[10] = Process(10, 1, 'grok bot.exe')
+    clock = [0]
+    monitor = CpuMonitor(backend, cores=4, clock=lambda: clock[0])
+    assert monitor.sample({})['grokbot'].state == 'sampling'
+    clock[0] = 2
+    backend.values = {10: (100, 2.0), 11: (101, 3.0)}
+    readings = monitor.sample({})
+    assert readings['grokbot'].percent == 25
+    assert readings['grok'].state == 'not_running'

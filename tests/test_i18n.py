@@ -64,7 +64,7 @@ data = Path(sys.argv[1])
 assert initialize(data, app) == 'en'
 from usagedesk.storage import ConfigStore
 from usagedesk.ui import MainWindow, EntryDialog
-from usagedesk.usage_ui import LoginDialog, GrokLoginDialog
+from usagedesk.usage_ui import LoginDialog, GrokLoginDialog, GrokBotLoginDialog
 from usagedesk.appearance import apply_theme
 from PySide6.QtGui import QPalette
 from usagedesk.bar import DisplayDialog
@@ -74,7 +74,7 @@ window.usage.timer.stop()
 dialog = DisplayDialog(window.bar, window.bar.options, window.usage.snapshots, [])
 texts = [window.tabs.tabText(i) for i in range(window.tabs.count())]
 assert 'General settings' in texts
-extra = [EntryDialog(window), LoginDialog('claude', window), LoginDialog('codex', window), GrokLoginDialog(window)]
+extra = [EntryDialog(window), LoginDialog('claude', window), LoginDialog('codex', window), GrokLoginDialog(window), GrokBotLoginDialog(window)]
 for owner in (window, dialog, *extra):
     for widget in owner.findChildren(QLabel) + owner.findChildren(QAbstractButton):
         texts.append(widget.text())

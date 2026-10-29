@@ -8,9 +8,9 @@
 
 **AI 사용 한도와 자주 여는 프로그램·파일을, Windows 바 하나에.**
 
-Claude · Codex · Grok의 사용량과 초기화 시간을 확인하고, 프로그램·HTML·문서를 같은 바에서 여는 Windows 데스크톱 유틸리티입니다.
+Claude · Codex · Grok · Grok Bot의 사용량과 초기화 시간을 확인하고, 프로그램·HTML·문서를 같은 바에서 여는 Windows 데스크톱 유틸리티입니다.
 
-Windows 11 · Python 3.13 · PySide6 · **0.1.0a22 / Alpha** · [MIT](LICENSE)
+Windows 11 · Python 3.13 · PySide6 · **0.1.0a23 / Alpha** · [MIT](LICENSE)
 
 ![어두운 테마의 UsageDesk 바](docs/images/toolbar-dark.png)
 
@@ -18,7 +18,7 @@ Windows 11 · Python 3.13 · PySide6 · **0.1.0a22 / Alpha** · [MIT](LICENSE)
 
 ## 주요 기능
 
-- **세 서비스의 한도를 한곳에서** — Claude, ChatGPT 계정의 Codex, Grok CLI 계정의 한도를 표시합니다.
+- **네 서비스의 한도를 한곳에서** — Claude, ChatGPT 계정의 Codex, Grok CLI, Grok Bot 웹 계정의 한도를 표시합니다.
 - **사용량 / 잔량 선택** — 숫자와 링을 함께 전환합니다.
 - **초기화까지 남은 시간** — `7d │ 초기화 23hr 44min`처럼 주기와 남은 시간을 구분합니다. 호버로 정확한 날짜·시각과 조회 상태를 확인합니다.
 - **떠 있는 바 / 상단·하단 고정 / 트레이 전용** — 드래그 이동, 작업 영역 확보, 바 없이 트레이만 표시하는 모드를 선택합니다.
@@ -93,6 +93,20 @@ Smart App Control이 자동 설치된 Python을 차단하면 보안 정책을 �
 ```
 
 ## 계정 연결
+
+**Grok Bot · 0.1.0a23 추가**
+
+1. `사용량 → Grok Bot · 웹 계정 → 로그인 / 다시 연결`을 엽니다.
+2. Grok Bot과 같은 계정으로 이 PC의 Cursor에 로그인했다면 **로컬 Cursor 로그인**을 선택합니다. 로그인 항목 하나만 읽으며 데이터베이스를 복사하거나 변경하지 않습니다. 로그인 갱신 후에는 새 인증을 다시 읽습니다.
+3. Cursor를 사용하지 않거나 계정이 다르면 **웹 세션 → 웹 사용량 페이지 열기**로 같은 계정에 로그인합니다. 창 안내에 따라 브라우저의 `WorkosCursorSessionToken` 값만 숨김 입력란에 넣습니다. 쿠키를 채팅에 보내지 마세요. 세션은 Windows DPAPI로 암호화해 저장하며, 만료 시 새 값으로 다시 연결합니다.
+4. 연결하면 바에 Grok Bot 아이콘·주간 비율이 나타납니다. 기존 사용량/잔량, 초기화 시간, 호버, 한도 선택·숨김 설정을 따릅니다. 연결 전과 연결 해제 후에는 바 공간을 차지하지 않습니다.
+
+Grok Bot은 기존 Grok CLI와 인증·조회 경로가 다릅니다. 공유 요금제 응답은 **통합 주간 한도**로 안내하며 두 게이지를 합산하지 않습니다. 수치가 빠지면 `—`로 표시합니다. 웹 내부 조회 경로를 사용하는 실험적 기능으로, 모든 계정에서의 반환 값은 확인되지 않았습니다.
+
+<details>
+<summary>Grok Bot 연결 화면</summary>
+<img src="docs/images/grokbot-connect.png" width="660" alt="로컬 Cursor 로그인과 웹 세션 연결을 선택하는 창">
+</details>
 
 **Claude / Codex**
 
@@ -171,6 +185,7 @@ Python은 프로젝트의 `.venv`를 우선 사용합니다. 필요한 실행기
 
 - 앱 데이터는 `%LOCALAPPDATA%\UsageDesk`에 저장합니다.
 - Claude·Codex 인증정보는 현재 Windows 사용자 기준 DPAPI로 암호화하고 파일 접근 권한을 제한합니다.
+- Grok Bot의 수동 웹 세션은 `secrets/grokbot.dpapi`에 같은 방식으로 암호화합니다. 로컬 Cursor 연결은 연결 방식만 저장하고 조회 시 로그인 항목 하나만 읽습니다. Grok Bot 앱의 대화·보관함과 브라우저 쿠키 저장소를 자동 추출하지 않습니다.
 - Grok은 CLI 인증 파일의 현재 토큰을 조회·자동 갱신에 사용합니다. 갱신 토큰은 공식 `https://auth.x.ai/oauth2/token`에만 전송하며, 교체된 인증은 CLI 파일에 접근 권한을 제한해 원자적으로 저장합니다. 앱 전용 토큰 저장소에는 복사하지 않고 연결 여부만 저장합니다.
 - 조회는 해당 서비스로 직접 요청합니다. UsageDesk가 운영하는 수집 서버나 분석 텔레메트리는 없습니다.
 - 연결 해제는 로컬 연결 해제입니다. 서버 토큰 폐기나 Grok CLI 로그아웃을 의미하지 않습니다.
@@ -190,9 +205,9 @@ Grok 응답에 현재 사용량 값이 없으면 마지막 성공 데이터를 �
 .\build.ps1
 ```
 
-현재 검증: **자동 테스트 355개**, Ruff, Windows EXE 시작·종료 검사. 바 길이 왕복 변경, 초기화 표시 유지, 상·하단 고정 및 트레이 복원과 웹 링크 등록·편집·기본 브라우저 실행을 검증합니다. 모든 계정·플랜·PC 환경에서의 동작을 보장하는 것은 아닙니다.
+현재 검증: **자동 테스트 405개**, Ruff, Windows EXE 시작·종료 검사. 바 길이 왕복 변경, 초기화 표시 유지, 상·하단 고정 및 트레이 복원과 웹 링크 등록·편집·기본 브라우저 실행을 검증합니다. 모든 계정·플랜·PC 환경에서의 동작을 보장하는 것은 아닙니다.
 
-빌드 결과는 `dist\0.1.0a22\UsageDesk\`에 생성됩니다. **EXE만 옮기지 말고 폴더 전체를 이동**해야 합니다. Python/Qt 의존성 고지와 라이브러리 교체 안내를 동봉합니다. `python scripts/package_release.py`로 바이너리·대응 소스 ZIP과 체크섬을 생성합니다. 서명하지 않은 알파 빌드입니다.
+빌드 결과는 `dist\0.1.0a23\UsageDesk\`에 생성됩니다. **EXE만 옮기지 말고 폴더 전체를 이동**해야 합니다. Python/Qt 의존성 고지와 라이브러리 교체 안내를 동봉합니다. `python scripts/package_release.py`로 바이너리·대응 소스 ZIP과 체크섬을 생성합니다. 서명하지 않은 알파 빌드입니다.
 
 README 화면은 다음 명령으로 다시 생성할 수 있습니다. 격리된 폴더와 예시 데이터만 사용합니다.
 
@@ -210,6 +225,7 @@ README 화면은 다음 명령으로 다시 생성할 수 있습니다. 격리�
 
 ## 참고 프로젝트와 감사
 
+- **[bcharleson/grokbot-usage-cli](https://github.com/bcharleson/grokbot-usage-cli)** — Grok Bot 주간 사용률·초기화 시각과 Cursor 세션 형식 참고. MIT 고지를 포함합니다.
 - **[f-is-h/Usage4Claude](https://github.com/f-is-h/Usage4Claude)** — 메뉴 바 모니터 아이디어, Claude·Codex 인증 프로토콜과 응답 모델 참고. MIT 고지를 보존합니다.
 - **[xai-org/grok-build](https://github.com/xai-org/grok-build)** — Grok CLI 개인 계정 인증 구조와 billing 응답 프로토콜 참고. Apache-2.0 고지를 포함합니다.
 - **[lobehub/lobe-icons](https://github.com/lobehub/lobe-icons)** — Claude·OpenAI·Grok SVG 로고 출처. MIT 고지를 포함합니다.

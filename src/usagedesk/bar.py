@@ -33,10 +33,12 @@ from .appbar import TopDock
 from .appearance import theme_color, themed_style
 from .i18n import tr
 
+PROVIDER_NAMES = {'claude': 'Claude', 'codex': 'Codex', 'grok': 'Grok', 'grokbot': 'Grok Bot'}
+
 
 def service_icon(provider):
     """Render the reference's familiar brand mark on a compact rounded tile."""
-    filename = {"claude": "claude.svg", "codex": "openai.svg", "grok": "grok.svg"}[provider]
+    filename = {"claude": "claude.svg", "codex": "openai.svg", "grok": "grok.svg", 'grokbot': 'grokbot.svg'}[provider]
     svg = (Path(__file__).parent / "assets" / filename).read_bytes()
     renderer = QSvgRenderer(svg.replace(b"currentColor", b"#ffffff"))
     pixmap = QPixmap(96, 96)
@@ -44,7 +46,7 @@ def service_icon(provider):
     painter = QPainter(pixmap)
     painter.setRenderHint(QPainter.Antialiasing)
     painter.setPen(Qt.NoPen)
-    painter.setBrush(QColor({"claude": "#d97757", "codex": "#233c3f", "grok": "#111111"}[provider]))
+    painter.setBrush(QColor({"claude": "#d97757", "codex": "#233c3f", "grok": "#111111", 'grokbot': '#303747'}[provider]))
     painter.drawRoundedRect(QRectF(0, 0, 96, 96), 20, 20)
     renderer.render(painter, QRectF(14, 14, 68, 68))
     painter.end()
@@ -136,7 +138,7 @@ def visible_limits(snapshot, provider, options):
         return []
     return [
         quota for quota in snapshot.limits
-        if (quota.used_percent is not None or provider == 'grok' and quota.reset_at_utc is not None)
+        if (quota.used_percent is not None or provider in {'grok', 'grokbot'} and quota.reset_at_utc is not None)
         and (options.mode == "smart" or quota_selected(snapshot, provider, quota.key, options.selected))
     ]
 
@@ -458,7 +460,7 @@ class DisplayDialog(QDialog):
                 known.add(key)
                 known.update(f"{provider}/{old}" for old, new in snapshot.aliases.items()
                              if new == quota.key)
-                check = QCheckBox(f"{provider.title()} · {quota.label}")
+                check = QCheckBox(f"{PROVIDER_NAMES.get(provider, provider.title())} · {quota.label}")
                 check.setChecked(quota_selected(snapshot, provider, quota.key, options.selected))
                 self.checks[key] = check
                 choices.addWidget(check)
@@ -598,7 +600,7 @@ class UsageBar(QWidget):
         QApplication.instance().aboutToQuit.connect(self.dock.remove)
         self.service_images = {
             key: service_icon(key)
-            for key in ("claude", "codex", "grok")
+            for key in PROVIDER_NAMES
         }
         self.pane.changed.connect(self.refresh)
         app = QApplication.instance()
@@ -661,9 +663,10 @@ class UsageBar(QWidget):
         maximum = max(200, available.width() - (0 if self.options.placement in ("top", "bottom") else 24))
         self.program_entries = [e for e in getattr(self.owner, "entries", ())
                                 if e.id in self.options.programs]
-        providers = [(key, name) for key, name in
-                     (("claude", "Claude"), ("codex", "Codex"), ("grok", "Grok"))
-                     if key in self.pane.cards]
+        providers = [(key, name) for key, name in PROVIDER_NAMES.items()
+                     if key in self.pane.cards and
+                     (key != 'grokbot' or key in self.pane.snapshots
+                      or self.pane.sessions[key].tokens is not None)]
         if self.options.hide_unselected and self.options.mode == "custom":
             providers = [(key, name) for key, name in providers
                          if any(s.startswith(key + "/") for s in self.options.selected)]
@@ -1035,9 +1038,10 @@ class UsageBar(QWidget):
             if quota is None:
                 return tooltip, rect
             now = now or datetime.now(UTC)
-            text = (tr('{p0} · {p1}\n사용률 미제공 · 인증 연결됨', p0=provider.title(), p1=quota.label)
+            name = PROVIDER_NAMES.get(provider, provider.title())
+            text = (tr('{p0} · {p1}\n사용률 미제공 · 인증 연결됨', p0=name, p1=quota.label)
                     if quota.used_percent is None else
-                    tr('{p0} · {p1}\n사용 {p2:g}% · 남음 {p3:g}%', p0=provider.title(), p1=quota.label, p2=quota.used_percent, p3=quota.remaining_percent))
+                    tr('{p0} · {p1}\n사용 {p2:g}% · 남음 {p3:g}%', p0=name, p1=quota.label, p2=quota.used_percent, p3=quota.remaining_percent))
             if quota.reset_at_utc:
                 seconds = max(0, int((quota.reset_at_utc - now).total_seconds()))
                 remaining = (tr('{p0}일 {p1}시간 {p2}분 남음', p0=seconds // 86400, p1=seconds % 86400 // 3600, p2=seconds % 3600 // 60) if seconds >= 60

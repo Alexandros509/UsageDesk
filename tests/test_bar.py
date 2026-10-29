@@ -118,6 +118,50 @@ def test_grok_logo_quota_and_settings_are_available(bar, monkeypatch):
     dialog.deleteLater()
 
 
+@pytest.mark.parametrize('basis,expected', [('used', '38%'), ('remaining', '62%')])
+def test_grokbot_connected_gauge_icon_reset_filter_and_disconnect(bar, monkeypatch, basis, expected):
+    from usagedesk.grokbot import normalize_grokbot
+    widget, pane, _, app = bar
+    monkeypatch.setattr(widget, 'available_geometry', lambda: QRect(0, 0, 2400, 1200))
+    assert not any(item[4] == 'grokbot' for item in widget.items)
+    pane.sessions['grokbot'].tokens = True
+    pane.snapshots['grokbot'] = normalize_grokbot({'usagePercent': 38,
+        'nextResetTimestampUtc': (datetime.now(UTC) + timedelta(days=5)).isoformat()})
+    widget.options = replace(widget.options, quota_display=basis, reset_display='inline')
+    pane.render()
+    item = next(i for i in widget.items if i[4] == 'grokbot' and i[3])
+    assert item[2] == expected
+    assert quota_caption(item[3], widget.options).startswith('7d │ 초기화 ')
+    assert 'Grok Bot' in widget.tooltip_at(item[0].center())[0]
+    assert not widget.service_images['grokbot'].isNull()
+    widget.show_bar()
+    app.processEvents()
+    assert not widget.grab().isNull()
+    dialog = DisplayDialog(widget, widget.options, pane.snapshots)
+    assert dialog.checks['grokbot/weekly'].text().startswith('Grok Bot ·')
+    dialog.deleteLater()
+    widget.options = replace(widget.options, mode='custom', selected=(), hide_unselected=True)
+    widget.refresh()
+    assert not any(i[4] == 'grokbot' for i in widget.items)
+    widget.options = replace(widget.options, mode='smart')
+    pane.disconnect('grokbot')
+    assert not any(i[4] == 'grokbot' for i in widget.items)
+
+
+def test_four_connected_services_fit_narrow_bar_without_overlap(bar, monkeypatch):
+    widget, pane, _, _ = bar
+    monkeypatch.setattr(widget, 'available_geometry', lambda: QRect(0, 0, 800, 600))
+    pane.sessions['grokbot'].tokens = True
+    pane.snapshots['grokbot'] = Snapshot(datetime.now(UTC), [
+        QuotaLimit('weekly', '주간 한도', 38, datetime.now(UTC) + timedelta(days=5), 604800)])
+    widget.options = replace(widget.options, reset_display='inline')
+    pane.render()
+    assert widget.width() <= 776
+    assert len([i for i in widget.items if i[1] == 'provider']) == 4
+    for first, second in zip(widget.items, widget.items[1:], strict=False):
+        assert first[0].right() < second[0].left()
+
+
 @pytest.mark.parametrize("mode,expected", [("used", "100%"), ("remaining", "0%")])
 @pytest.mark.parametrize("extra", [False, True])
 def test_weekly_exhaustion_adjusts_five_hour_even_when_weekly_hidden(

@@ -12,6 +12,16 @@ UsageDesk handles authentication material and launches user-selected local files
   A response containing rotated tokens is persisted even if the UI disconnects
   during the exchange. Failed writes retain the response in memory for a retry;
   closing the app before a successful write can still require CLI sign-in again.
+- Grok Bot: connects only after the user chooses a source. A local Cursor link
+  queries only `cursorAuth/accessToken` in `state.vscdb` using SQLite read-only
+  mode, without copying the database; the vault stores only the source preference.
+  A manually entered `WorkosCursorSessionToken` is stored in `grokbot.dpapi`
+  using current-user DPAPI and user/SYSTEM-only ACLs. It is sent only to the fixed
+  HTTPS Cursor dashboard usage endpoint. Browser cookies, Grok Bot vault files,
+  conversations and unrelated database entries are not imported. Disconnecting
+  deletes the app's stored link/session without signing out the original app.
+  Web sessions have no invented refresh grant: on expiry reconnect explicitly;
+  local Cursor links reread the current sign-in and recover after it changes.
 - No UsageDesk telemetry or collection server. Provider requests go directly to
   configured service endpoints over HTTPS.
 - HTTP redirects and automatic proxy environment configuration are disabled.
