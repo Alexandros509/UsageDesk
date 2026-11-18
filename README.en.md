@@ -10,7 +10,7 @@
 
 UsageDesk is a Windows desktop utility that shows Claude, Codex, Grok and Grok Bot usage and reset times, and opens programs, HTML pages and documents from the same bar.
 
-Windows 11 · Python 3.13 · PySide6 · **0.1.0a23 / Alpha** · [MIT](LICENSE)
+Windows 11 · Python 3.13 · PySide6 · **0.1.0a24 / Alpha** · [MIT](LICENSE)
 
 ![UsageDesk toolbar in dark mode](docs/images/toolbar-dark-en.png)
 
@@ -24,6 +24,7 @@ Windows 11 · Python 3.13 · PySide6 · **0.1.0a23 / Alpha** · [MIT](LICENSE)
 - **Used or remaining quota** — Switch both percentages and rings together.
 - **Time until reset** — Separate the quota window from the countdown, for example `7d │ Reset 23hr 44min`. Hover for the exact reset date, time and fetch status.
 - **Floating, top-docked, bottom-docked or tray-only** — Drag the floating bar, reserve desktop work area with a docked bar, or keep only the tray icon.
+- **Move between monitors** — Right-click the bar or use `⋯ → Move to monitor` to move without disabling docking. Restore the selected monitor on the next launch.
 - **Launch programs and files** — Register EXE, BAT and Python scripts, HTML pages, PDFs, documents and images.
 - **Two-line program names** — Adjust spacing and font size, use spare width, then put overflow items in a `+N` menu.
 - **Display preferences** — Choose size, colors, light/dark appearance, visible quotas and programs.
@@ -31,6 +32,13 @@ Windows 11 · Python 3.13 · PySide6 · **0.1.0a23 / Alpha** · [MIT](LICENSE)
 Inspired by [Usage4Claude](https://github.com/f-is-h/Usage4Claude), this is an independent Windows application written in Python/Qt. It is not an official Windows port and is not affiliated with Anthropic, OpenAI or xAI.
 
 ## Screenshots
+
+### 0.1.0a24 monitor selection and restoration
+
+- Right-click the bar or use **⋯ → Move to monitor** to select a connected display. Top/bottom docking and size are preserved, and the old monitor's work area is released. In tray-only mode, selection changes the restore destination while keeping the bar hidden.
+- Under **Settings → Bar display → Display → Display monitor**, choose **Last used monitor / Always use primary monitor / Selected monitor**. The quick-move menu selects a specific monitor; dragging the floating bar remembers its destination as the last used monitor.
+- If the preferred monitor is unavailable, the bar uses the primary display. Enable **Return to original monitor when reconnected** to move back on reconnect; disable it to remember the fallback primary display as the new destination.
+- Existing settings migrate from saved coordinates. Only a hash of the monitor identity is saved. Drivers that provide neither a serial number nor a Windows device identity fall back to the display name, so a port or display-number change may require selecting the monitor again.
 
 ### 0.1.0a18 display improvements
 
@@ -205,9 +213,9 @@ See the [release runbook](RUNBOOK.en.md) for preparation, publication review, Gi
 .\build.ps1
 ```
 
-Current validation: **405 automated tests**, Ruff and Windows EXE startup/shutdown checks. Coverage includes switching bar lengths back and forth, preserving reset-time display, top/bottom docking, restoration from tray mode, and registering, editing and opening web links in the default browser. This does not guarantee operation across every account, plan or PC environment.
+Current validation: **436 automated tests**, Ruff and Windows EXE startup/shutdown checks. Coverage includes switching bar lengths back and forth, preserving reset-time display, top/bottom docking, restoration from tray mode, and registering, editing and opening web links in the default browser. Monitor selection, disconnect and reconnect are covered by automated tests. Bidirectional movement, work-area restoration and restart restoration were also checked on two physical monitors at 150% and 100% scaling. This does not guarantee operation across every account, plan or PC environment.
 
-Build output is written to `dist\0.1.0a23\UsageDesk\`. **Move the entire folder, not just the EXE.** Python/Qt notices and library replacement instructions are included. Run `python scripts/package_release.py` to produce binary and corresponding source ZIPs with checksums. This is an unsigned alpha build.
+Build output is written to `dist\0.1.0a24\UsageDesk\`. **Move the entire folder, not just the EXE.** Python/Qt notices and library replacement instructions are included. Run `python scripts/package_release.py` to produce binary and corresponding source ZIPs with checksums. This is an unsigned alpha build.
 
 Regenerate README screenshots with the following command. It uses only an isolated directory and synthetic data:
 

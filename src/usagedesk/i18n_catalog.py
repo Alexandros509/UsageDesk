@@ -662,5 +662,22 @@ EN = {'UsageDesk 사용량 바': 'UsageDesk usage bar',
  'Grok Bot · 웹 계정': 'Grok Bot · Web account',
  'Claude·Codex·Grok Bot 웹 세션은 Windows 사용자 범위로 암호화됩니다. Grok CLI 인증은 CLI와 공유하며 만료 전 갱신합니다. Grok Bot 로컬 연결은 연결 여부만 저장합니다.':
      'Claude/Codex credentials and Grok Bot web sessions are encrypted for this Windows user. Grok CLI authentication is shared with the CLI and renewed before expiry. Grok Bot local connections store only the link preference.',
+ ' · 주 모니터': ' · Primary',
+ '표시 모니터': 'Display monitor',
+ '마지막 사용 모니터': 'Last used monitor',
+ '항상 주 모니터': 'Always use primary monitor',
+ '지정 모니터': 'Selected monitor',
+ '모니터 선택': 'Choose monitor',
+ '모니터 재연결 시 원래 모니터로 복귀': 'Return to original monitor when reconnected',
+ '끄면 모니터 분리 시 이동한 주 모니터를 새 위치로 기억합니다.':
+     'When off, remember the fallback primary monitor as the new location after disconnection.',
+ '저장된 모니터 · 연결 안 됨': 'Saved monitor · Disconnected',
+ '모니터 위치 저장 실패 · 이번 실행에서만 적용됩니다.':
+     'Could not save monitor location · Applies only for this session.',
+ '사용 가능한 모니터가 없습니다.': 'No monitors are available.',
+ '모니터 이동': 'Move to monitor',
+ '선택한 모니터가 분리되었습니다. 목록을 다시 열어 주세요.':
+     'The selected monitor was disconnected. Reopen the monitor list.',
+ '모니터로 이동': 'Move to monitor',
  'Grok Bot 웹 인증이 만료되었습니다. 같은 계정으로 로그인한 뒤 다시 연결하세요.':
      'Grok Bot web authentication has expired. Sign in to the same account and reconnect.'}

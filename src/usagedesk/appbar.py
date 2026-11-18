@@ -102,7 +102,7 @@ class TopDock:
             return
         # Offscreen rendering never changes the desktop work area.
         if QApplication.platformName() != "windows":
-            area = self.widget.screen().geometry()
+            area = self.widget.target_screen().geometry()
             self.widget.move(area.left(), area.bottom() - self.widget.height() + 1
                              if self.widget.options.placement == "bottom" else area.top())
             return
@@ -190,8 +190,9 @@ class TopDock:
             self.registered = False
             self.applied = None
             self.schedule()
-        elif msg.message in (0x007E, 0x02E0):  # WM_DISPLAYCHANGE, WM_DPICHANGED
-            # Lay out again once Qt has processed the same message.
+        elif msg.message == 0x007E:  # WM_DISPLAYCHANGE: monitor topology may have changed.
+            QTimer.singleShot(0, self.widget.monitors_changed)
+        elif msg.message == 0x02E0:  # WM_DPICHANGED: keep the registration, rebuild logical size.
             QTimer.singleShot(0, self.widget.relayout)
         elif self.registered and msg.message == self.callback:
             if msg.wParam == 1:  # ABN_POSCHANGED

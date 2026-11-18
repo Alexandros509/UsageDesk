@@ -64,6 +64,8 @@ $releaseExe = Join-Path $releaseDir 'UsageDesk\UsageDesk.exe'
 - Confirm that the gear button and `⋯ → Settings` open the same management window.
 - Check Korean/English switching and restart, Light/Dark window themes, and readable menus and dropdowns.
 - Switch bar widths back and forth; confirm top/bottom/floating placement survives tray mode and restart.
+- Right-click the bar or use `⋯ → Move to monitor` to move both ways while keeping top/bottom docking. The previous display's work area must be restored, and the bar must not overlap maximized windows on the destination. Include displays with different scaling, such as 100% and 150%.
+- Check Last used/Always use primary/Selected monitor preferences, restart, tray restoration and primary-display changes. Disconnecting the target must fall back to the primary display. With return-on-reconnect enabled, reconnecting restores the target; with it disabled, the bar stays on the fallback. Schedule physical power/cable tests separately when they will not interrupt the user's work.
 - Check quota selection, hiding entire services, used/remaining percentages, reset times and hover details, long program names and the `+N` menu.
 - Register and open sample files; check hotkey assignment, conflicts and clearing. Do not use files containing personal information.
 - Switch Type between File/Web link in the Add/Edit dialog and verify input preservation and saving. Confirm a local test URL opens from the bar/tray in the default browser and that links have no working-directory or console controls. Open settings containing web links with version 0.1.0a20 or later.
@@ -118,4 +120,5 @@ Treat documentation pushes and Release publication as separate operations.
 3. Install the **entire UsageDesk folder** from the new ZIP. Do not replace only the EXE or mix `_internal` files from different versions.
 4. Preserve `%LOCALAPPDATA%\UsageDesk` and the Grok CLI authentication directory. Verify language, placement, hotkeys and connection state.
 5. If the update fails, exit the new app and restore the previous application folder. If the old version cannot read a newer settings format, keep private settings intact and investigate with an isolated `--data-dir`.
+   Version 0.1.0a24 adds monitor preference fields to existing display settings. Older versions ignore them. If needed, select **Always use primary monitor** in the new version before rolling back. Authentication, program and hotkey storage formats are unchanged.
 6. Record the version, commit, verification results, hashes and known issues in the Release record. Do not include credentials or personal paths.

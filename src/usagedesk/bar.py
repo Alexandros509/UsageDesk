@@ -32,6 +32,7 @@ from PySide6.QtWidgets import (
 from .appbar import TopDock
 from .appearance import theme_color, themed_style
 from .i18n import tr
+from .monitors import choose_screen, screen_at, screen_id, screen_label
 
 PROVIDER_NAMES = {'claude': 'Claude', 'codex': 'Codex', 'grok': 'Grok', 'grokbot': 'Grok Bot'}
 
@@ -71,6 +72,9 @@ class DisplayOptions:
     hide_unselected: bool = False
     cpu_ai: bool = False
     cpu_programs: bool = False
+    monitor_mode: str = 'last'
+    monitor_id: str = ''
+    return_to_monitor: bool = True
 
 
 class DisplayStore:
@@ -92,6 +96,9 @@ class DisplayStore:
                 values = [values]
             return tuple(v for v in values if isinstance(v, str)) if isinstance(values, list) else ()
         legacy_tray = self.settings.value("placement") == "tray"
+        monitor = self.settings.value('monitor_id', '')
+        if not isinstance(monitor, str) or len(monitor) != 64 or any(c not in '0123456789abcdef' for c in monitor):
+            monitor = ''
         return DisplayOptions(
             choice("size", ("compact", "standard", "prominent"), "standard"),
             choice("theme", ("translucent", "background", "mono"), "translucent"),
@@ -109,11 +116,15 @@ class DisplayStore:
             boolean("hide_unselected", "false"),
             boolean("cpu_ai", "false"),
             boolean("cpu_programs", "false"),
+            choice('monitor_mode', ('last', 'primary', 'selected'), 'last'),
+            monitor,
+            boolean('return_to_monitor'),
         )
 
     def save(self, options):
         for key in ("size", "theme", "appearance", "icons", "percentages", "mode", "length",
-                    "placement", "quota_display", "reset_display", "tray_mode", "hide_unselected", "cpu_ai", "cpu_programs"):
+                    "placement", "quota_display", "reset_display", "tray_mode", "hide_unselected", "cpu_ai", "cpu_programs",
+                    'monitor_mode', 'monitor_id', 'return_to_monitor'):
             self.settings.setValue(key, getattr(options, key))
         self.settings.setValue("selected", list(options.selected))
         self.settings.setValue("programs", list(options.programs))
@@ -416,6 +427,25 @@ class DisplayDialog(QDialog):
             self.length.setEnabled(selected == "floating")
         self.placement.currentIndexChanged.connect(placement_changed)
         placement_changed()
+        self.monitor_mode = self.combo(form, tr('표시 모니터'), [
+            (tr('마지막 사용 모니터'), 'last'), (tr('항상 주 모니터'), 'primary'),
+            (tr('지정 모니터'), 'selected'),
+        ], options.monitor_mode)
+        self.monitor_screen = NoWheelComboBox()
+        self.monitor_screen.setMinimumContentsLength(18)
+        self.monitor_screen.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
+        self.saved_monitor = options.monitor_id
+        form.addRow(tr('모니터 선택'), self.monitor_screen)
+        self.return_to_monitor = QCheckBox(tr('모니터 재연결 시 원래 모니터로 복귀'))
+        self.return_to_monitor.setChecked(options.return_to_monitor)
+        self.return_to_monitor.setToolTip(tr('끄면 모니터 분리 시 이동한 주 모니터를 새 위치로 기억합니다.'))
+        form.addRow(self.return_to_monitor)
+        self.monitor_mode.currentIndexChanged.connect(self.update_monitor_controls)
+        app = QApplication.instance()
+        app.screenAdded.connect(self.update_monitor_choices)
+        app.screenRemoved.connect(self.update_monitor_choices)
+        app.primaryScreenChanged.connect(self.update_monitor_choices)
+        self.update_monitor_choices()
         self.quota_display = self.combo(form, tr('비율 기준'), [
             (tr('사용량 · 사용한 비율'), "used"), (tr('잔량 · 남은 비율'), "remaining"),
         ], options.quota_display)
@@ -546,6 +576,31 @@ class DisplayDialog(QDialog):
             return
         self.accept()
 
+    def update_monitor_choices(self, *_):
+        selected = self.monitor_screen.currentData() or self.saved_monitor
+        self.monitor_screen.clear()
+        app = QApplication.instance()
+        for screen in app.screens():
+            self.monitor_screen.addItem(screen_label(screen, app.primaryScreen()), screen_id(screen))
+        if selected and self.monitor_screen.findData(selected) < 0:
+            self.monitor_screen.addItem(tr('저장된 모니터 · 연결 안 됨'), selected)
+        index = self.monitor_screen.findData(selected)
+        self.monitor_screen.setCurrentIndex(max(0, index))
+        configure_popup(self.monitor_screen)
+        self.update_monitor_controls()
+
+    def update_monitor_controls(self, *_):
+        self.monitor_screen.setEnabled(self.monitor_mode.currentData() == 'selected')
+        self.return_to_monitor.setEnabled(self.monitor_mode.currentData() != 'primary')
+
+    def set_monitor_options(self, options):
+        # A quick monitor move must not discard other unsaved display preferences.
+        self.saved_monitor = options.monitor_id
+        self.monitor_screen.clear()
+        self.monitor_mode.setCurrentIndex(self.monitor_mode.findData(options.monitor_mode))
+        self.return_to_monitor.setChecked(options.return_to_monitor)
+        self.update_monitor_choices()
+
     def value(self):
         return DisplayOptions(
             size=self.size.currentData(), theme=self.theme.currentData(),
@@ -560,6 +615,10 @@ class DisplayDialog(QDialog):
             cpu_ai=self.cpu_ai.isChecked(), cpu_programs=self.cpu_programs.isChecked(),
             quota_display=self.quota_display.currentData(),
             reset_display=self.reset_display.currentData(),
+            monitor_mode=self.monitor_mode.currentData(),
+            monitor_id=(self.monitor_screen.currentData() or '')
+            if self.monitor_mode.currentData() == 'selected' else self.saved_monitor,
+            return_to_monitor=self.return_to_monitor.isChecked(),
         )
 
 
@@ -596,6 +655,9 @@ class UsageBar(QWidget):
         self.drag_offset = None
         self._positioned = False
         self._signature = None
+        self._moving_monitor = False
+        self._drag_screen = None
+        self._active_monitor_id = None
         self.dock = TopDock(self)
         QApplication.instance().aboutToQuit.connect(self.dock.remove)
         self.service_images = {
@@ -605,7 +667,8 @@ class UsageBar(QWidget):
         self.pane.changed.connect(self.refresh)
         app = QApplication.instance()
         app.screenAdded.connect(self.screen_added)
-        app.screenRemoved.connect(self.relayout)
+        app.screenRemoved.connect(self.monitors_changed)
+        app.primaryScreenChanged.connect(self.monitors_changed)
         app.paletteChanged.connect(self.refresh)
         for screen in app.screens():
             self.screen_added(screen)
@@ -613,10 +676,98 @@ class UsageBar(QWidget):
 
     def screen_added(self, screen):
         screen.availableGeometryChanged.connect(self.relayout)
-        screen.geometryChanged.connect(self.relayout)
+        screen.geometryChanged.connect(self.monitors_changed)
+        self.monitors_changed()
+
+    def screens(self):
+        return QApplication.screens()
+
+    def primary_screen(self):
+        return QApplication.primaryScreen()
+
+    def target_screen(self):
+        screens = self.screens()
+        if self._drag_screen in screens:
+            return self._drag_screen
+        return choose_screen(screens, self.primary_screen(), self.options.monitor_mode,
+                             self.options.monitor_id, self.store.position(),
+                             self.screen() if self._positioned else None)
+
+    def monitors_changed(self, *_):
+        self._active_monitor_id = None
+        QTimer.singleShot(0, self.sync_monitor)
+
+    def sync_monitor(self):
+        if self._moving_monitor or not self._positioned or getattr(self.owner, 'quitting', False):
+            return
+        screen = self.target_screen()
+        if screen is None:
+            return
+        identifier = screen_id(screen)
+        if (self.options.monitor_mode != 'primary' and self.options.monitor_id
+                and not self.options.return_to_monitor
+                and not any(screen_id(s) == self.options.monitor_id for s in self.screens())):
+            options = replace(self.options, monitor_id=identifier)
+            try:
+                self.store.save(options)
+            except OSError:
+                self.setToolTip(tr('모니터 위치 저장 실패 · 이번 실행에서만 적용됩니다.'))
+            self.options = options
+        if self._active_monitor_id != identifier:
+            self.dock.remove()
+            self.place_on_screen(screen)
+            self._signature = None
         self.relayout()
 
+    def place_on_screen(self, screen, position=None):
+        self._moving_monitor = True
+        try:
+            self._active_monitor_id = screen_id(screen)
+            # Set Qt's target first; its old DPI can lag while crossing displays.
+            if QApplication.platformName() == 'windows':
+                self.winId()
+                self.windowHandle().setScreen(screen)
+            area = screen.geometry() if self.options.placement in ('top', 'bottom') else screen.availableGeometry()
+            if self.options.placement in ('top', 'bottom'):
+                self.setFixedWidth(area.width())
+                self.move(area.left(), area.bottom() - self.height() + 1
+                          if self.options.placement == 'bottom' else area.top())
+            else:
+                position = position if position is not None else self.pos()
+                self.move(keep_on_screen(QRect(position, self.size()), area))
+        finally:
+            self._moving_monitor = False
+
+    def populate_monitor_menu(self, menu):
+        menu.clear()
+        target = self.target_screen()
+        for screen in self.screens():
+            identifier = screen_id(screen)
+            action = menu.addAction(screen_label(screen, self.primary_screen()).replace('&', '&&'))
+            action.setCheckable(True)
+            action.setChecked(screen is target)
+            action.setData(identifier)
+            action.triggered.connect(lambda checked=False, key=identifier: self.move_to_monitor(key))
+        if not self.screens():
+            menu.addAction(tr('사용 가능한 모니터가 없습니다.')).setEnabled(False)
+
+    def move_to_monitor(self, identifier):
+        screen = next((s for s in self.screens() if screen_id(s) == identifier), None)
+        if screen is None:
+            QMessageBox.warning(self, tr('모니터 이동'), tr('선택한 모니터가 분리되었습니다. 목록을 다시 열어 주세요.'))
+            return False
+        options = replace(self.options, monitor_mode='selected', monitor_id=identifier)
+        if not self.apply_options(options):
+            return False
+        self.persist_position()
+        editor = getattr(self.owner, 'display_editor', None)
+        if editor is not None:
+            editor.set_monitor_options(self.options)
+        return True
+
     def relayout(self, *_):
+        if self._moving_monitor:
+            return
         if self.dock.busy:  # Never drop a display change: run it after the dock pass.
             QTimer.singleShot(0, self.relayout)
             return
@@ -817,16 +968,19 @@ class UsageBar(QWidget):
         self.reposition()
 
     def available_geometry(self):
-        app = QApplication.instance()
+        screen = self.target_screen()
         if self.options.placement in ("top", "bottom"):
-            # The docked bar spans the screen its window is on, the one the dock sizes it for.
-            return (self.screen() if self._positioned else app.primaryScreen()).geometry()
-        screen = app.screenAt(self.frameGeometry().center()) if self._positioned else None
-        return (screen or app.primaryScreen()).availableGeometry()
+            return screen.geometry()
+        return screen.availableGeometry()
 
     def reposition(self, *_):
         if self.options.tray_mode:
             return
+        if self._positioned and not self._moving_monitor:
+            target = self.target_screen()
+            if target is not None and self._active_monitor_id != screen_id(target):
+                self.dock.remove()
+                self.place_on_screen(target)
         if self.options.placement in ("top", "bottom"):
             self.dock.schedule()
             return
@@ -869,13 +1023,21 @@ class UsageBar(QWidget):
             return
         if not self._positioned:
             position = self.store.position()
-            screen = QApplication.screenAt(position) if position is not None else None
-            area = (screen or QApplication.primaryScreen()).availableGeometry()
+            screen = self.target_screen()
+            area = screen.availableGeometry()
             if position is None:
                 position = QPoint(area.right() - self.width() - 12, area.top() + 10)
-            self.move(keep_on_screen(QRect(position, self.size()), area))
             self._positioned = True
+            self.place_on_screen(screen, position)
+            if self.options.monitor_mode == 'last' and not self.options.monitor_id:
+                options = replace(self.options, monitor_id=screen_id(screen))
+                try:
+                    self.store.save(options)
+                    self.options = options
+                except OSError:
+                    self.setToolTip(tr('모니터 위치 저장 실패 · 이번 실행에서만 적용됩니다.'))
             self.relayout()
+            self.sync_monitor()
         self.reposition()
         self.show()
         self.raise_()
@@ -883,7 +1045,11 @@ class UsageBar(QWidget):
             self.dock.update()
 
     def reset_position(self):
-        area = QApplication.primaryScreen().availableGeometry()
+        primary = self.primary_screen()
+        options = replace(self.options, monitor_mode='last', monitor_id=screen_id(primary))
+        if not self.apply_options(options):
+            return
+        area = primary.availableGeometry()
         self.move(area.right() - self.width() - 12, area.top() + 10)
         self.reposition()
         self.persist_position()
@@ -909,6 +1075,10 @@ class UsageBar(QWidget):
         if options.tray_mode and not getattr(self.owner, "tray_available", True):
             QMessageBox.warning(dialog, tr('트레이 사용 불가'), tr('시스템 트레이를 사용할 수 없어 기존 배치를 유지합니다.'))
             return False
+        if (options.monitor_mode != 'primary' and options.monitor_id
+                and not options.return_to_monitor
+                and not any(screen_id(s) == options.monitor_id for s in self.screens())):
+            options = replace(options, monitor_id=screen_id(self.primary_screen()))
         try:
             if options.tray_mode and self.isVisible():
                 self.store.save_position(self.pos())
@@ -918,6 +1088,10 @@ class UsageBar(QWidget):
             return False
         self.dock.remove()
         self.options = options
+        self._active_monitor_id = None
+        target = self.target_screen()
+        if target is not None and not options.tray_mode:
+            self.place_on_screen(target)
         self.refresh()
         if self.options.tray_mode:
             self.tray_only()
@@ -1086,6 +1260,7 @@ class UsageBar(QWidget):
             position = event.globalPosition().toPoint() - self.drag_offset
             screen = QApplication.screenAt(event.globalPosition().toPoint())
             if screen:
+                self._drag_screen = screen
                 position = keep_on_screen(QRect(position, self.size()), screen.availableGeometry())
             self.move(position)
             return
@@ -1102,7 +1277,17 @@ class UsageBar(QWidget):
         if event.button() != Qt.LeftButton:
             return
         if self.drag_offset is not None:
+            screen = self._drag_screen or screen_at(self.frameGeometry().center(), self.screens())
+            if screen is not None:
+                options = replace(self.options, monitor_mode='last', monitor_id=screen_id(screen))
+                try:
+                    self.store.save(options)
+                    self.options = options
+                    self._active_monitor_id = screen_id(screen)
+                except OSError:
+                    self.setToolTip(tr('모니터 위치 저장 실패 · 이번 실행에서만 적용됩니다.'))
             self.drag_offset = None
+            self._drag_screen = None
             self._positioned = True
             self.relayout()
             self.persist_position()
