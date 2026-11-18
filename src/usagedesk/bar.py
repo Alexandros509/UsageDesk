@@ -6,7 +6,7 @@ from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 
-from PySide6.QtCore import QEvent, QPoint, QRect, QRectF, QSettings, Qt
+from PySide6.QtCore import QEvent, QPoint, QRect, QRectF, QSettings, Qt, QTimer
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPalette, QPen, QPixmap
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import (
@@ -613,10 +613,12 @@ class UsageBar(QWidget):
 
     def screen_added(self, screen):
         screen.availableGeometryChanged.connect(self.relayout)
+        screen.geometryChanged.connect(self.relayout)
         self.relayout()
 
     def relayout(self, *_):
-        if self.dock.busy:
+        if self.dock.busy:  # Never drop a display change: run it after the dock pass.
+            QTimer.singleShot(0, self.relayout)
             return
         self._signature = None
         self.refresh()
@@ -816,9 +818,11 @@ class UsageBar(QWidget):
 
     def available_geometry(self):
         app = QApplication.instance()
+        if self.options.placement in ("top", "bottom"):
+            # The docked bar spans the screen its window is on, the one the dock sizes it for.
+            return (self.screen() if self._positioned else app.primaryScreen()).geometry()
         screen = app.screenAt(self.frameGeometry().center()) if self._positioned else None
-        target = screen or app.primaryScreen()
-        return target.geometry() if self.options.placement in ("top", "bottom") else target.availableGeometry()
+        return (screen or app.primaryScreen()).availableGeometry()
 
     def reposition(self, *_):
         if self.options.tray_mode:

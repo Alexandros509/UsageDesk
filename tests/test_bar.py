@@ -8,6 +8,7 @@ from PySide6.QtGui import QColor, QFontMetrics, QHelpEvent, QPalette
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QMenu, QStyleFactory, QToolTip, QWidget
 
+from usagedesk.appbar import logical_rect, matching_screen
 from usagedesk.bar import (
     DisplayDialog,
     DisplayOptions,
@@ -545,6 +546,60 @@ def test_dock_edge_and_preference(bar, placement):
     app.processEvents()
     area = widget.screen().geometry()
     assert widget.y() == (area.bottom() - widget.height() + 1 if placement == "bottom" else area.top())
+
+
+class FakeScreen:
+    def __init__(self, area, scale):
+        self.area, self.scale = area, scale
+
+    def geometry(self):
+        return self.area
+
+    def devicePixelRatio(self):
+        return self.scale
+
+
+LAPTOP = (0, 0, 2560, 1600)  # 150 %: Qt reports 1707 x 1067 logical pixels.
+EXTERNAL = (2560, 0, 4480, 1080)  # 100 %, to the right of the laptop panel.
+
+
+def test_dock_uses_scale_of_the_monitor_it_is_on():
+    laptop = FakeScreen(QRect(0, 0, 1707, 1067), 1.5)
+    external = FakeScreen(QRect(2560, 0, 1920, 1080), 1.0)
+    assert matching_screen(LAPTOP, [external, laptop]) is laptop
+    assert matching_screen(EXTERNAL, [laptop, external]) is external
+    # After the external monitor is switched off the bar spans the laptop panel exactly,
+    # not 2560 logical pixels (one third beyond the right edge) at the old 100 % scale.
+    assert logical_rect((0, 0, 2560, 63), LAPTOP, laptop.geometry(), 1.5) == QRect(0, 0, 1707, 42)
+    assert logical_rect((2560, 1038, 4480, 1080), EXTERNAL, external.geometry(), 1.0) == QRect(
+        2560, 1038, 1920, 42)
+
+
+def test_dock_waits_while_qt_and_windows_disagree_about_monitors():
+    external = FakeScreen(QRect(2560, 0, 1920, 1080), 1.0)
+    stale = FakeScreen(QRect(0, 0, 1920, 1080), 1.0)  # Qt still describes the old primary.
+    assert matching_screen(LAPTOP, [external]) is None
+    assert matching_screen(LAPTOP, [stale]) is None
+    assert matching_screen(LAPTOP, []) is None
+
+
+def test_display_change_during_dock_update_is_not_lost(bar):
+    widget, _, _, app = bar
+    widget.options = replace(widget.options, placement="top")
+    widget.show_bar()
+    app.processEvents()
+    dock = widget.dock
+    dock.timer.stop()
+    dock.busy = True
+    dock.schedule()
+    assert dock.pending and not dock.timer.isActive()
+    widget._signature = "kept"
+    widget.relayout()
+    assert widget._signature == "kept"  # Deferred, not run in the middle of the pass.
+    dock.finish()
+    assert not dock.busy and not dock.pending and dock.timer.isActive()
+    app.processEvents()
+    assert widget._signature != "kept"
 
 
 @pytest.mark.parametrize("placement", ["floating", "top", "bottom"])

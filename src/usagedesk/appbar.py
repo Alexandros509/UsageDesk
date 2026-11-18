@@ -22,11 +22,41 @@ class MonitorInfo(ctypes.Structure):
                 ("rcWork", wintypes.RECT), ("dwFlags", wintypes.DWORD)]
 
 
+def matching_screen(monitor, screens):
+    """Qt screen showing the Windows monitor rectangle (left, top, right, bottom), or None.
+
+    A Qt screen keeps the native origin and divides only its size by the scale factor. While
+    the display layout is changing, Qt and Windows can briefly describe different monitors;
+    None then means "not settled yet" rather than a guess in mixed units.
+    """
+    left, top, right, bottom = monitor
+    for screen in screens:
+        area, scale = screen.geometry(), screen.devicePixelRatio()
+        if (area.left() == left and area.top() == top
+                and abs(area.width() - (right - left) / scale) <= 1
+                and abs(area.height() - (bottom - top) / scale) <= 1):
+            return screen
+    return None
+
+
+def logical_rect(native, monitor, area, scale):
+    """Native AppBar rectangle on `monitor` in the logical pixels of its Qt screen `area`."""
+    return QRect(area.left() + round((native[0] - monitor[0]) / scale),
+                 area.top() + round((native[1] - monitor[1]) / scale),
+                 round((native[2] - native[0]) / scale),
+                 round((native[3] - native[1]) / scale))
+
+
 class TopDock:
+    RETRIES = 20  # 250 ms apart: display changes settle within a few seconds.
+
     def __init__(self, widget):
         self.widget = widget
         self.registered = False
         self.busy = False
+        self.pending = False
+        self.retries = 0
+        self.applied = None
         self.callback = 0
         self.taskbar_created = 0
         self.bounds = None
@@ -48,8 +78,6 @@ class TopDock:
         self.user.MonitorFromWindow.restype = wintypes.HANDLE
         self.user.GetMonitorInfoW.argtypes = [wintypes.HANDLE, ctypes.POINTER(MonitorInfo)]
         self.user.GetMonitorInfoW.restype = wintypes.BOOL
-        self.user.GetDpiForWindow.argtypes = [wintypes.HWND]
-        self.user.GetDpiForWindow.restype = wintypes.UINT
         self.user.SetWindowPos.argtypes = [wintypes.HWND, wintypes.HWND, ctypes.c_int,
                                           ctypes.c_int, ctypes.c_int, ctypes.c_int, wintypes.UINT]
         self.user.SetWindowPos.restype = wintypes.BOOL
@@ -91,7 +119,18 @@ class TopDock:
             info.cbSize = ctypes.sizeof(info)
             if not self.user.GetMonitorInfoW(monitor, ctypes.byref(info)):
                 raise OSError("Monitor geometry unavailable")
-            scale = (self.user.GetDpiForWindow(data.hWnd) or 96) / 96
+            monitor = (info.rcMonitor.left, info.rcMonitor.top,
+                       info.rcMonitor.right, info.rcMonitor.bottom)
+            # Size and scale come from the one Qt screen that shows this monitor. The window's
+            # own DPI lags behind while it is being moved between monitors.
+            screen = matching_screen(monitor, QApplication.screens())
+            if screen is None:
+                if self.retries < self.RETRIES:
+                    self.retries += 1
+                    self.timer.start(250)
+                return
+            self.retries = 0
+            scale = screen.devicePixelRatio()
             height = round(self.widget.height() * scale)
             data.rc = info.rcMonitor
             if data.uEdge == 3:
@@ -103,12 +142,12 @@ class TopDock:
                 data.rc.top = data.rc.bottom - height
             else:
                 data.rc.bottom = data.rc.top + height
-            self.send(3, data)  # ABM_SETPOS
-            screen = self.widget.screen().geometry()
-            rect = QRect(screen.left() + round((data.rc.left - info.rcMonitor.left) / scale),
-                         screen.top() + round((data.rc.top - info.rcMonitor.top) / scale),
-                         round((data.rc.right - data.rc.left) / scale),
-                         round((data.rc.bottom - data.rc.top) / scale))
+            native = (data.rc.left, data.rc.top, data.rc.right, data.rc.bottom)
+            if self.applied != (data.uEdge, native):  # Repeated passes must not notify again.
+                self.send(3, data)  # ABM_SETPOS
+                native = (data.rc.left, data.rc.top, data.rc.right, data.rc.bottom)
+                self.applied = (data.uEdge, native)
+            rect = logical_rect(native, monitor, screen.geometry(), scale)
             changed = self.bounds != rect
             self.bounds = rect
             self.widget.setFixedSize(rect.size())
@@ -120,15 +159,25 @@ class TopDock:
             self.remove()
             self.widget.setToolTip(tr('고정 바 작업 영역 확보 실패 · 표시 설정에서 떠 있는 바로 전환하세요.'))
         finally:
-            self.busy = False
+            self.finish()
+
+    def finish(self):
+        self.busy = False
+        if self.pending:  # A change arrived during this pass; its values may be stale.
+            self.pending = False
+            self.schedule()
 
     def schedule(self):
-        if not self.busy and not self.timer.isActive():
+        if self.busy:
+            self.pending = True
+        elif not self.timer.isActive():
             self.timer.start(60)
 
     def remove(self):
         self.timer.stop()
-        self.bounds = None
+        self.bounds = self.applied = None
+        self.pending = False
+        self.retries = 0
         if self.registered:
             self.registered = False
             self.send(1)  # ABM_REMOVE
@@ -139,7 +188,11 @@ class TopDock:
         msg = ctypes.cast(int(message), ctypes.POINTER(wintypes.MSG)).contents
         if msg.message == self.taskbar_created:
             self.registered = False
+            self.applied = None
             self.schedule()
+        elif msg.message in (0x007E, 0x02E0):  # WM_DISPLAYCHANGE, WM_DPICHANGED
+            # Lay out again once Qt has processed the same message.
+            QTimer.singleShot(0, self.widget.relayout)
         elif self.registered and msg.message == self.callback:
             if msg.wParam == 1:  # ABN_POSCHANGED
                 self.schedule()
