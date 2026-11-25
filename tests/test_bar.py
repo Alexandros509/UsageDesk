@@ -781,3 +781,74 @@ def test_connected_missing_usage_is_not_labeled_login(bar):
     pane.render()
     item = next(item for item in widget.items if item[4] == 'grok' and item[1] == 'detail')
     assert item[2] == '사용률 미제공'
+
+
+@pytest.mark.parametrize('enabled', [False, True])
+def test_provider_name_preference_roundtrip_and_legacy_default(tmp_path, enabled):
+    store = DisplayStore(tmp_path)
+    assert store.load().provider_names  # Existing settings keep their prior appearance.
+    options = replace(store.load(), provider_names=enabled)
+    store.save(options)
+    assert DisplayStore(tmp_path).load() == options
+
+
+@pytest.mark.parametrize('size', ['compact', 'standard', 'prominent'])
+@pytest.mark.parametrize('cpu', [False, True])
+def test_hidden_provider_names_save_width_keep_icons_cpu_and_hover(bar, size, cpu):
+    from usagedesk.bar import PROVIDER_NAMES
+    from usagedesk.cpu import Reading
+
+    widget, pane, owner, app = bar
+    pane.timer.stop()
+    widget.available_geometry = lambda: QRect(0, 0, 2400, 1080)
+    owner.cpu_values = {key: Reading(12.5, 'ready') for key in PROVIDER_NAMES}
+    for key in PROVIDER_NAMES:
+        pane.snapshots[key] = Snapshot(datetime.now(UTC), [QuotaLimit('sample', '5h', 25)])
+    widget.options = replace(widget.options, size=size, cpu_ai=cpu, provider_names=True)
+    widget.refresh()
+    named_width, named_height = widget.width(), widget.height()
+    widget.options = replace(widget.options, provider_names=False, icons=False)
+    widget.refresh()
+    assert widget.width() < named_width and widget.height() == named_height
+    providers = [i for i in widget.items if i[1] == 'provider']
+    assert len(providers) == len(PROVIDER_NAMES)
+    for rect, _, text, _, key, tooltip in providers:
+        assert text == '' and not widget.service_images[key].isNull()
+        assert PROVIDER_NAMES[key] in tooltip
+        assert PROVIDER_NAMES[key] in widget.tooltip_at(rect.center())[0]
+        if cpu:
+            assert 'CPU 12.5%' in tooltip
+        else:
+            assert rect.width() == 35
+    widget.show()
+    app.processEvents()
+    assert not widget.grab().isNull()
+    widget.options = replace(widget.options, provider_names=True, icons=True)
+    widget.refresh()
+    assert widget.width() == named_width
+
+
+def test_name_checkbox_and_grok_uncheck_persist_without_hiding_grokbot(bar):
+    widget, pane, _, app = bar
+    pane.timer.stop()
+    for key, quota in [('claude', 'five_hour'), ('grok', 'account'), ('grokbot', 'weekly')]:
+        pane.snapshots[key] = Snapshot(datetime.now(UTC), [QuotaLimit(quota, quota, 25)])
+    widget.options = replace(widget.options, mode='custom', hide_unselected=True,
+                              selected=('claude/five_hour', 'grok/account', 'grokbot/weekly'))
+    dialog = DisplayDialog(widget, widget.options, pane.snapshots)
+    try:
+        assert dialog.provider_names.isChecked()
+        dialog.provider_names.setChecked(False)
+        dialog.checks['grok/account'].setChecked(False)
+        assert widget.apply_options(dialog.value(), dialog)
+        app.processEvents()
+        assert not widget.store.load().provider_names
+        assert not [i for i in widget.items if i[4] == 'grok']
+        assert [i for i in widget.items if i[4] == 'grokbot']
+        assert [i for i in widget.items if i[1] == 'provider' and i[2] == '']
+        widget.tray_only()
+        widget.restore_bar()
+        assert not widget.options.provider_names
+        assert not [i for i in widget.items if i[4] == 'grok']
+    finally:
+        dialog.deleteLater()

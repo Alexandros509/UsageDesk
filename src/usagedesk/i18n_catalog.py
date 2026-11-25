@@ -683,6 +683,11 @@ EN = {'UsageDesk 사용량 바': 'UsageDesk usage bar',
      'Grok Bot web authentication has expired. Sign in to the same account and reconnect.'}
 
 EN.update({
+ 'AI 서비스 이름 표시': 'Show AI service names',
+ '직접 선택 모드에서 켜면 한도를 모두 해제한 서비스의 이름·아이콘·CPU 영역까지 숨깁니다. 끄면 게이지만 숨깁니다.':
+     'In Custom mode, enable this to hide names, icons and CPU areas when all quotas for a service are unchecked. When disabled, only the gauges are hidden.',
+ '이름을 숨겨도 서비스 아이콘·게이지·CPU 표시·호버 설명은 유지됩니다.':
+     'Hide names while keeping service icons, gauges, CPU readings and hover details.',
  '한도': 'Quota',
  'Antigravity CLI를 찾지 못했습니다. agy.exe 설치 경로를 선택하세요.':
      'Antigravity CLI was not found. Choose the installed agy.exe.',

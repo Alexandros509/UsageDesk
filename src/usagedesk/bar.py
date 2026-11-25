@@ -78,6 +78,7 @@ class DisplayOptions:
     monitor_mode: str = 'last'
     monitor_id: str = ''
     return_to_monitor: bool = True
+    provider_names: bool = True
 
 
 class DisplayStore:
@@ -122,12 +123,13 @@ class DisplayStore:
             choice('monitor_mode', ('last', 'primary', 'selected'), 'last'),
             monitor,
             boolean('return_to_monitor'),
+            boolean('provider_names'),
         )
 
     def save(self, options):
         for key in ("size", "theme", "appearance", "icons", "percentages", "mode", "length",
                     "placement", "quota_display", "reset_display", "tray_mode", "hide_unselected", "cpu_ai", "cpu_programs",
-                    'monitor_mode', 'monitor_id', 'return_to_monitor'):
+                    'monitor_mode', 'monitor_id', 'return_to_monitor', 'provider_names'):
             self.settings.setValue(key, getattr(options, key))
         self.settings.setValue("selected", list(options.selected))
         self.settings.setValue("programs", list(options.programs))
@@ -469,6 +471,10 @@ class DisplayDialog(QDialog):
         self.reset_display = self.combo(form, tr('초기화까지'), [
             (tr('호버에서만 보기'), "off"), (tr('게이지 아래 · 한도 옆에 남은 시간'), "inline"),
         ], options.reset_display)
+        self.provider_names = QCheckBox(tr('AI 서비스 이름 표시'))
+        self.provider_names.setChecked(options.provider_names)
+        self.provider_names.setToolTip(tr('이름을 숨겨도 서비스 아이콘·게이지·CPU 표시·호버 설명은 유지됩니다.'))
+        form.addRow(self.provider_names)
         self.icons = QCheckBox(tr('링 아이콘 표시'))
         self.icons.setChecked(options.icons)
         self.percentages = QCheckBox(tr('퍼센트 표시'))
@@ -493,7 +499,7 @@ class DisplayDialog(QDialog):
         limit_layout.addWidget(self.mode)
         self.hide_unselected = QCheckBox(tr('선택한 한도가 없는 서비스는 이름·로고도 숨기기'))
         self.hide_unselected.setChecked(options.hide_unselected)
-        self.hide_unselected.setToolTip(tr('직접 선택 모드에서 적용됩니다. 모두 해제하면 서비스 전체가 바에서 사라집니다.'))
+        self.hide_unselected.setToolTip(tr('직접 선택 모드에서 켜면 한도를 모두 해제한 서비스의 이름·아이콘·CPU 영역까지 숨깁니다. 끄면 게이지만 숨깁니다.'))
         limit_layout.addWidget(self.hide_unselected)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -636,6 +642,7 @@ class DisplayDialog(QDialog):
             monitor_id=(self.monitor_screen.currentData() or '')
             if self.monitor_mode.currentData() == 'selected' else self.saved_monitor,
             return_to_monitor=self.return_to_monitor.isChecked(),
+            provider_names=self.provider_names.isChecked(),
         )
 
 
@@ -840,11 +847,17 @@ class UsageBar(QWidget):
         if self.options.hide_unselected and self.options.mode == "custom":
             providers = [(key, name) for key, name in providers
                          if any(s.startswith(key + "/") for s in self.options.selected)]
-        budgets, demands = {}, {}
+        budgets, demands, title_widths = {}, {}, {}
         for provider, name in providers:
             snapshot = self.pane.snapshots.get(provider)
-            title_width = max(metrics.horizontalAdvance(name),
-                              caption_metrics.horizontalAdvance("CPU 100.0%") if self.options.cpu_ai else 0) + 42
+            if self.options.provider_names:
+                title_width = max(metrics.horizontalAdvance(name),
+                                  caption_metrics.horizontalAdvance("CPU 100.0%") if self.options.cpu_ai else 0) + 42
+            elif self.options.cpu_ai:
+                title_width = max(35, QFontMetrics(caption_font).horizontalAdvance('CPU 100.0%') + 12)
+            else:
+                title_width = 35
+            title_widths[provider] = title_width
             quotas = visible_limits(snapshot, provider, self.options)
             if quotas:
                 content = sum(max(metrics.horizontalAdvance(
@@ -921,10 +934,9 @@ class UsageBar(QWidget):
         for provider, name in providers:
             budget = budgets[provider]
             snapshot = self.pane.snapshots.get(provider)
-            title = name
-            width = min(max(metrics.horizontalAdvance(title),
-                            caption_metrics.horizontalAdvance("CPU 100.0%") if self.options.cpu_ai else 0) + 42, max(35, budget - 44))
-            status = self.pane.cards[provider][0].text()
+            title = name if self.options.provider_names else ''
+            width = min(title_widths[provider], max(35, budget - 44))
+            status = name + '\n' + self.pane.cards[provider][0].text()
             if self.options.cpu_ai:
                 status += cpu_tooltip(self.owner, provider)
             items.append((QRect(x, 0, width, height), "provider", title, None, provider, status))
@@ -1142,6 +1154,20 @@ class UsageBar(QWidget):
             painter.setPen(foreground)
             if action == "provider":
                 pixmap = self.service_images[provider]
+                if not self.options.provider_names:
+                    size = min(23, rect.height() - 16) if self.options.cpu_ai else 23
+                    top = 2 if self.options.cpu_ai else (rect.height() - size) // 2
+                    painter.drawPixmap(QRect(rect.left() + (rect.width() - size) // 2,
+                                             top, size, size), pixmap)
+                    if self.options.cpu_ai:
+                        painter.save()
+                        font = QFont(self.font())
+                        font.setPointSizeF(max(7, font.pointSizeF() - 2))
+                        painter.setFont(font)
+                        painter.drawText(rect.adjusted(2, size + 2, -2, -1),
+                                         Qt.AlignHCenter | Qt.AlignBottom, cpu_text(self.owner, provider))
+                        painter.restore()
+                    continue
                 painter.drawPixmap(QRect(rect.left() + 5, (rect.height() - 23) // 2, 23, 23), pixmap)
                 caption = painter.fontMetrics().elidedText(text, Qt.ElideRight, rect.width() - 28)
                 painter.drawText(rect.adjusted(28, 0, 0, -12 if self.options.cpu_ai else 0), Qt.AlignCenter, caption)
