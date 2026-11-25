@@ -10,7 +10,7 @@
 
 UsageDesk is a Windows desktop utility that shows Claude, Codex, Grok, Grok Bot and Antigravity usage and reset times, and opens programs, HTML pages and documents from the same bar.
 
-Windows 11 · Python 3.13 · PySide6 · **0.1.0a26 / Alpha** · [MIT](LICENSE)
+Windows 11 · Python 3.13 · PySide6 · **0.1.0a27 / Alpha** · [MIT](LICENSE)
 
 ![UsageDesk toolbar in dark mode](docs/images/toolbar-dark-en.png)
 
@@ -33,9 +33,11 @@ Inspired by [Usage4Claude](https://github.com/f-is-h/Usage4Claude), this is an i
 
 ## Screenshots
 
-### 0.1.0a26 service icon display
+### 0.1.0a27 service icon display
 
-Turn off **Settings → Bar display → Display → Bar appearance → Show AI service names** to hide service names while keeping icons and gauges. Hover over an icon for its service name and status. Enabled CPU readings appear below the icon. Program names and quota model-group labels remain visible. Existing settings default to showing names.
+Turn off **Settings → Bar display → Display → Bar appearance → Show AI service names** to hide service names while keeping icons and gauges. Hover over an icon for its service name and status. Enabled CPU readings appear below the icon. Program names remain visible. Existing settings default to showing names.
+
+The caption below each gauge consistently shows only the period, such as `5h` or `7d`, and its reset time. Antigravity does not repeat model names there. Hover over a gauge or open Usage details to identify Gemini, Claude/GPT and other model groups.
 
 ![UsageDesk bar with service names hidden](docs/images/toolbar-icons-en.png)
 
@@ -232,9 +234,9 @@ See the [release runbook](RUNBOOK.en.md) for preparation, publication review, Gi
 .\build.ps1
 ```
 
-Current validation: **478 automated tests**, Ruff and Windows EXE startup/shutdown checks. Coverage includes switching bar lengths back and forth, preserving reset-time display, top/bottom docking, restoration from tray mode, and registering, editing and opening web links in the default browser. Monitor selection, disconnect and reconnect are covered by automated tests. Bidirectional movement, work-area restoration and restart restoration were also checked on two physical monitors at 150% and 100% scaling. This does not guarantee operation across every account, plan or PC environment.
+Current validation: **481 automated tests**, Ruff and Windows EXE startup/shutdown checks. Coverage includes switching bar lengths back and forth, preserving reset-time display, top/bottom docking, restoration from tray mode, and registering, editing and opening web links in the default browser. Monitor selection, disconnect and reconnect are covered by automated tests. Bidirectional movement, work-area restoration and restart restoration were also checked on two physical monitors at 150% and 100% scaling. This does not guarantee operation across every account, plan or PC environment.
 
-Build output is written to `dist\0.1.0a26\UsageDesk\`. **Move the entire folder, not just the EXE.** Python/Qt notices and library replacement instructions are included. Run `python scripts/package_release.py` to produce binary and corresponding source ZIPs with checksums. This is an unsigned alpha build.
+Build output is written to `dist\0.1.0a27\UsageDesk\`. **Move the entire folder, not just the EXE.** Python/Qt notices and library replacement instructions are included. Run `python scripts/package_release.py` to produce binary and corresponding source ZIPs with checksums. This is an unsigned alpha build.
 
 Regenerate README screenshots with the following command. It uses only an isolated directory and synthetic data:
 

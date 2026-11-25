@@ -177,7 +177,8 @@ def test_weekly_exhaustion_only_affects_the_same_antigravity_pool():
     assert display_percent(gemini, options, provider='antigravity', snapshot=snapshot) == 0
     assert display_percent(partner, options, provider='antigravity', snapshot=snapshot) == 40
     assert '주간 한도 소진' in quota_caption(gemini, options, NOW, provider='antigravity', snapshot=snapshot)
-    assert 'Claude/GPT · 5h' in quota_caption(partner, options, NOW)
+    assert quota_caption(partner, options, NOW) == '5h │ 초기화 1d 0hr'
+    assert partner.label == 'Claude/GPT · 5h'  # Keep model identity in details and hover.
     unknown = replace(partner, used_percent=None)
     snapshot.limits.append(unknown)
     assert unknown in visible_limits(snapshot, 'antigravity', options)

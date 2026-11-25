@@ -852,3 +852,39 @@ def test_name_checkbox_and_grok_uncheck_persist_without_hiding_grokbot(bar):
         assert not [i for i in widget.items if i[4] == 'grok']
     finally:
         dialog.deleteLater()
+
+
+@pytest.mark.parametrize('provider_names', [False, True])
+def test_antigravity_captions_show_period_only_and_keep_model_in_hover(bar, provider_names):
+    widget, pane, _, _ = bar
+    widget.available_geometry = lambda: QRect(0, 0, 1920, 1080)
+    now = datetime.now(UTC)
+    quotas = [QuotaLimit(f'agy/{group}-{seconds}', f'{group} · {period}', 25,
+                        now + timedelta(hours=2), seconds)
+              for group in ('Gemini', 'Claude/GPT')
+              for seconds, period in ((18000, '5h'), (604800, '7d'))]
+    snapshot = Snapshot(now, quotas)
+    pane.snapshots['antigravity'] = snapshot
+    widget.options = replace(widget.options, provider_names=provider_names, mode='custom',
+                             hide_unselected=True, reset_display='inline',
+                             selected=tuple(f'antigravity/{q.key}' for q in quotas))
+    widget.refresh()
+    details = [item for item in widget.items if item[3]]
+    assert len(details) == 4
+    for item in details:
+        caption = quota_caption(item[3], widget.options, now)
+        assert caption in ('5h │ 초기화 2hr 0min', '7d │ 초기화 2hr 0min')
+        assert item[3].label in widget.tooltip_at(item[0].center())[0]
+    original_width = widget.width()
+    # A longer upstream model name must not consume more toolbar space.
+    pane.snapshots['antigravity'] = replace(snapshot, limits=[
+        replace(q, label='Very Long Updated Model Group · ' + q.label.rsplit(' · ', 1)[-1])
+        for q in quotas
+    ])
+    widget.refresh()
+    assert widget.width() == original_width
+
+
+def test_antigravity_unknown_period_does_not_display_model_name():
+    quota = QuotaLimit('agy/unknown', 'Gemini · 한도', 25)
+    assert quota_caption(quota, DisplayOptions()) == '한도'

@@ -167,13 +167,13 @@ def quota_selected(snapshot, provider, key, selected):
 
 
 def short_label(quota):
-    if quota.key.startswith('agy/'):
-        return quota.label
     if quota.key.startswith(("weekly_scoped:", "seven_day_")):
         return quota.label.split(" · ")[0][:10]
     if quota.window_seconds:
         hours = quota.window_seconds / 3600
         return f"{hours / 24:g}d" if hours >= 24 else f"{hours:g}h"
+    if quota.key.startswith('agy/'):
+        return tr('한도')
     if "five_hour" in quota.key:
         return "5h"
     if quota.key == "seven_day":
