@@ -10,6 +10,7 @@ from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
+    QFileDialog,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -22,6 +23,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from .antigravity import INSTALL_URL, AntigravitySession, find_cli, validate_cli
 from .credentials import CredentialVault
 from .domain import RefreshPolicy
 from .grok import GROK_CLI, GrokSession
@@ -31,6 +33,8 @@ from .oauth import CONFIGS, MANUAL_REDIRECT, LoopbackLogin, ProviderError, Trans
 from .providers import AccountSession
 
 MESSAGES = {
+    'AGY_NOT_FOUND': tr('Antigravity CLI를 찾지 못했습니다. agy.exe 설치 경로를 선택하세요.'),
+    'AGY_COMMAND_FAILED': tr('Antigravity CLI 조회에 실패했습니다. CLI에서 로그인과 /usage 동작을 확인하세요.'),
     'INVALID_SESSION': tr('웹 세션 형식이 올바르지 않습니다. 세션 쿠키 값 하나만 입력하세요.'),
     'LOCAL_AUTH_MISSING': tr('로컬 Cursor 로그인을 찾지 못했습니다. 같은 계정으로 Cursor에 로그인하거나 웹 세션으로 연결하세요.'),
     'AUTH_BUSY': tr('Grok CLI가 인증을 갱신 중입니다. 잠시 후 자동 재시도합니다.'),
@@ -215,6 +219,70 @@ class GrokLoginDialog(QDialog):
             self.status.setText(tr('Grok CLI를 실행할 수 없습니다. 위 설치 경로를 확인하세요.'))
 
 
+class AntigravityLoginDialog(QDialog):
+    def __init__(self, parent=None, path=None):
+        super().__init__(parent)
+        self.setWindowTitle(tr('Antigravity 계정 연결'))
+        self.resize(660, 350)
+        layout = QVBoxLayout(self)
+        layout.addWidget(label(tr('공식 Antigravity CLI의 /usage 결과로 Gemini·Argon·Neon·Claude/GPT 한도를 조회합니다. 공유 한도는 중복 표시하지 않습니다.')))
+        layout.addWidget(label(tr('로그인과 인증 갱신은 공식 CLI가 담당합니다. UsageDesk는 Google 비밀번호·쿠키·OAuth 토큰을 읽거나 저장하지 않고 CLI 경로와 연결 여부만 암호화해 저장합니다.')))
+        self.path = QLineEdit(str(path or find_cli() or ''))
+        self.path.setPlaceholderText(tr('Antigravity CLI 실행 파일 · agy.exe'))
+        layout.addWidget(self.path)
+        choose = QPushButton(tr('agy.exe 선택'))
+        choose.clicked.connect(self.choose_cli)
+        layout.addWidget(choose)
+        install = QPushButton(tr('공식 CLI 설치 안내 열기'))
+        install.clicked.connect(self.open_install)
+        layout.addWidget(install)
+        login = QPushButton(tr('Antigravity CLI 로그인 열기'))
+        login.clicked.connect(self.start_login)
+        layout.addWidget(login)
+        self.status = label(tr('이미 Antigravity에 로그인했다면 현재 CLI 계정을 연결하세요. /usage 조회 결과만 읽습니다.'))
+        layout.addWidget(self.status)
+        self.cli_path = None
+        self.process = None
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.button(QDialogButtonBox.Ok).setText(tr('현재 CLI 계정 연결'))
+        buttons.button(QDialogButtonBox.Cancel).setText(tr('취소'))
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def choose_cli(self):
+        path, _ = QFileDialog.getOpenFileName(self, tr('Antigravity CLI 선택'),
+                                             self.path.text(), 'Antigravity CLI (*.exe)')
+        if path:
+            self.path.setText(path)
+
+    def open_install(self):
+        if not QDesktopServices.openUrl(QUrl(INSTALL_URL)):
+            self.status.setText(tr('브라우저를 열 수 없습니다. 기본 브라우저 설정을 확인하세요.'))
+
+    def start_login(self):
+        if self.process is not None and self.process.poll() is None:
+            self.status.setText(tr('열린 CLI 창에서 로그인을 완료한 뒤 연결하세요.'))
+            return
+        try:
+            path = validate_cli(self.path.text())
+            self.process = subprocess.Popen([str(path)], cwd=str(path.parent),
+                                             creationflags=subprocess.CREATE_NEW_CONSOLE)
+            self.status.setText(tr('CLI 창에서 로그인 완료 후 ‘현재 CLI 계정 연결’을 누르세요.'))
+        except ProviderError as exc:
+            self.status.setText(MESSAGES[exc.code])
+        except OSError:
+            self.status.setText(MESSAGES['AGY_COMMAND_FAILED'])
+
+    def accept(self):
+        try:
+            self.cli_path = validate_cli(self.path.text())
+        except ProviderError as exc:
+            self.status.setText(MESSAGES[exc.code])
+            return
+        super().accept()
+
+
 class GrokBotLoginDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -278,6 +346,7 @@ class UsagePane(QWidget):
         self.sessions = {key: AccountSession(key, CredentialVault(directory)) for key in CONFIGS}
         self.sessions["grok"] = GrokSession(CredentialVault(directory))
         self.sessions['grokbot'] = GrokBotSession(CredentialVault(directory))
+        self.sessions['antigravity'] = AntigravitySession(CredentialVault(directory), directory)
         self.policies = {key: RefreshPolicy() for key in self.sessions}
         self.snapshots = {}
         self.errors = {}
@@ -291,7 +360,7 @@ class UsagePane(QWidget):
         layout = QVBoxLayout(self)
         layout.addWidget(
             label(
-                tr('Claude · Codex · Grok · Grok Bot 사용량 — 실험적 연동\nCodex는 ChatGPT 코딩 한도, Grok은 CLI 계정 한도, Grok Bot은 웹 계정의 주간 한도를 조회합니다.')
+                tr('Claude · Codex · Grok · Grok Bot · Antigravity 사용량 — 실험적 연동\n각 서비스의 계정 한도를 별도로 표시합니다. Antigravity의 공유 모델 그룹은 한 번만 표시합니다.')
             )
         )
         scroll = QScrollArea()
@@ -301,6 +370,7 @@ class UsagePane(QWidget):
         names = {key: config.label for key, config in CONFIGS.items()}
         names["grok"] = tr('Grok · CLI 계정')
         names['grokbot'] = tr('Grok Bot · 웹 계정')
+        names['antigravity'] = tr('Antigravity · Google 계정')
         for key, name in names.items():
             card = QGroupBox(name)
             card_layout = QVBoxLayout(card)
@@ -330,7 +400,7 @@ class UsagePane(QWidget):
         layout.addWidget(scroll)
         layout.addWidget(
             label(
-                tr('Claude·Codex·Grok Bot 웹 세션은 Windows 사용자 범위로 암호화됩니다. Grok CLI 인증은 CLI와 공유하며 만료 전 갱신합니다. Grok Bot 로컬 연결은 연결 여부만 저장합니다.')
+                tr('Claude·Codex·Grok Bot 웹 세션은 Windows 사용자 범위로 암호화됩니다. Grok 인증은 CLI와 공유합니다. Antigravity 인증은 공식 CLI가 관리하며, UsageDesk는 연결 설정만 저장합니다.')
             )
         )
         self.timer = QTimer(self)
@@ -358,6 +428,20 @@ class UsagePane(QWidget):
     def login(self, key):
         if key in self.tasks or (self.errors.get(key) == "RATE_LIMITED" and
                                 time.monotonic() < self.policies[key].retry_at):
+            return
+        if key == 'antigravity':
+            session = self.sessions[key]
+            dialog = AntigravityLoginDialog(self, session.cli_path)
+            accepted = dialog.exec() == QDialog.Accepted
+            path = dialog.cli_path
+            dialog.deleteLater()
+            if accepted:
+                epoch = session.reset()
+                self.snapshots.pop(key, None)
+                self.errors.pop(key, None)
+                self.policies[key].reconnect()
+                self.policies[key].begin(time.monotonic(), True)
+                self.submit(key, 'fetch', lambda: session.connect(epoch, path))
             return
         if key in {'grok', 'grokbot'}:
             dialog = GrokLoginDialog(self) if key == 'grok' else GrokBotLoginDialog(self)
@@ -456,7 +540,7 @@ class UsagePane(QWidget):
                 self.refresh(key)
         else:
             policy = self.policies[key]
-            partial = (key in {'grok', 'grokbot'} and not error and value.limits
+            partial = (key in {'grok', 'grokbot', 'antigravity'} and not error and value.limits
                        and all(q.used_percent is None for q in value.limits))
             policy.finish(
                 policy.generation,
@@ -471,16 +555,16 @@ class UsagePane(QWidget):
                     self.grok_auth_revision = self.sessions['grok'].auth_store.revision()
                 if key == 'grokbot':
                     self.grokbot_auth_revision = self.sessions[key].revision()
-                if error.code in {"STORAGE_ERROR", "REQUEST_REJECTED", 'LOCAL_AUTH_MISSING', 'INVALID_SESSION'}:
+                if error.code in {"STORAGE_ERROR", "REQUEST_REJECTED", 'LOCAL_AUTH_MISSING', 'INVALID_SESSION', 'AGY_NOT_FOUND'}:
                     policy.halted = True
             elif partial:
                 self.errors[key] = 'USAGE_UNAVAILABLE'
                 if key == 'grok':
                     self.grok_auth_revision = self.sessions['grok'].auth_store.revision()
-                else:
+                elif key == 'grokbot':
                     self.grokbot_auth_revision = self.sessions[key].revision()
                 previous = self.snapshots.get(key)
-                same_period = previous and [q.reset_at_utc for q in previous.limits] == [q.reset_at_utc for q in value.limits]
+                same_period = previous and [(q.key, q.reset_at_utc) for q in previous.limits] == [(q.key, q.reset_at_utc) for q in value.limits]
                 if not same_period or not any(q.used_percent is not None for q in previous.limits):
                     self.snapshots[key] = value
             else:
@@ -501,7 +585,7 @@ class UsagePane(QWidget):
                 text = tr('Grok 인증을 자동 갱신할 수 없습니다. 로그인 / 다시 연결에서 CLI 로그인하세요. 로그인 후 자동 복구됩니다.')
             if key == 'grokbot' and error == 'AUTH_REQUIRED':
                 text = tr('Grok Bot 웹 인증이 만료되었습니다. 같은 계정으로 로그인한 뒤 다시 연결하세요.')
-            if key in {'grok', 'grokbot'} and error == 'USAGE_UNAVAILABLE':
+            if key in {'grok', 'grokbot', 'antigravity'} and error == 'USAGE_UNAVAILABLE':
                 text = tr('인증 연결됨 · 서비스가 현재 사용률을 제공하지 않습니다.')
             if key in self.tasks:
                 text = tr('인증·사용량 확인 중…')

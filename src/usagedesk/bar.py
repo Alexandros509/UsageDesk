@@ -34,12 +34,14 @@ from .appearance import theme_color, themed_style
 from .i18n import tr
 from .monitors import choose_screen, screen_at, screen_id, screen_label
 
-PROVIDER_NAMES = {'claude': 'Claude', 'codex': 'Codex', 'grok': 'Grok', 'grokbot': 'Grok Bot'}
+PROVIDER_NAMES = {'claude': 'Claude', 'codex': 'Codex', 'grok': 'Grok', 'grokbot': 'Grok Bot',
+                  'antigravity': 'Antigravity'}
 
 
 def service_icon(provider):
     """Render the reference's familiar brand mark on a compact rounded tile."""
-    filename = {"claude": "claude.svg", "codex": "openai.svg", "grok": "grok.svg", 'grokbot': 'grokbot.svg'}[provider]
+    filename = {"claude": "claude.svg", "codex": "openai.svg", "grok": "grok.svg", 'grokbot': 'grokbot.svg',
+                'antigravity': 'antigravity.svg'}[provider]
     svg = (Path(__file__).parent / "assets" / filename).read_bytes()
     renderer = QSvgRenderer(svg.replace(b"currentColor", b"#ffffff"))
     pixmap = QPixmap(96, 96)
@@ -47,7 +49,8 @@ def service_icon(provider):
     painter = QPainter(pixmap)
     painter.setRenderHint(QPainter.Antialiasing)
     painter.setPen(Qt.NoPen)
-    painter.setBrush(QColor({"claude": "#d97757", "codex": "#233c3f", "grok": "#111111", 'grokbot': '#303747'}[provider]))
+    painter.setBrush(QColor({"claude": "#d97757", "codex": "#233c3f", "grok": "#111111", 'grokbot': '#303747',
+                            'antigravity': '#1c3255'}[provider]))
     painter.drawRoundedRect(QRectF(0, 0, 96, 96), 20, 20)
     renderer.render(painter, QRectF(14, 14, 68, 68))
     painter.end()
@@ -149,7 +152,8 @@ def visible_limits(snapshot, provider, options):
         return []
     return [
         quota for quota in snapshot.limits
-        if (quota.used_percent is not None or provider in {'grok', 'grokbot'} and quota.reset_at_utc is not None)
+        if (quota.used_percent is not None or provider == 'antigravity'
+            or provider in {'grok', 'grokbot'} and quota.reset_at_utc is not None)
         and (options.mode == "smart" or quota_selected(snapshot, provider, quota.key, options.selected))
     ]
 
@@ -161,6 +165,8 @@ def quota_selected(snapshot, provider, key, selected):
 
 
 def short_label(quota):
+    if quota.key.startswith('agy/'):
+        return quota.label
     if quota.key.startswith(("weekly_scoped:", "seven_day_")):
         return quota.label.split(" · ")[0][:10]
     if quota.window_seconds:
@@ -193,6 +199,15 @@ def exhausted_weekly(quota, provider, snapshot):
     """Account-wide weekly exhaustion limits the five-hour subscription pool."""
     if snapshot is None:
         return None
+    if provider == 'antigravity':
+        if quota.window_seconds != 18000 or quota.used_percent is None:
+            return None
+        pool = snapshot.quota_groups.get(quota.key)
+        if not pool:
+            return None
+        return next((q for q in snapshot.limits if q.window_seconds == 604800
+                     and snapshot.quota_groups.get(q.key) == pool
+                     and q.used_percent is not None and q.used_percent >= 100), None)
     if provider == "codex":
         if quota.window_seconds != 18000 or quota.used_percent is None:
             return None
@@ -225,6 +240,8 @@ def percentage_text(quota, options, provider, snapshot):
     if not options.percentages:
         return ''
     value = display_percent(quota, options, provider=provider, snapshot=snapshot)
+    if provider == 'antigravity' and value is not None:
+        return f'{value:.1f}'.rstrip('0').rstrip('.') + '%'
     return '—' if value is None else f'{value:g}%'
 
 
@@ -818,7 +835,7 @@ class UsageBar(QWidget):
                                 if e.id in self.options.programs]
         providers = [(key, name) for key, name in PROVIDER_NAMES.items()
                      if key in self.pane.cards and
-                     (key != 'grokbot' or key in self.pane.snapshots
+                     (key not in {'grokbot', 'antigravity'} or key in self.pane.snapshots
                       or self.pane.sessions[key].tokens is not None)]
         if self.options.hide_unselected and self.options.mode == "custom":
             providers = [(key, name) for key, name in providers

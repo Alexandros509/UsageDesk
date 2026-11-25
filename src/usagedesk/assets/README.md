@@ -15,6 +15,7 @@ Current vector source: lobehub/lobe-icons, commit 82e641b4fece9d1028a127149af9de
 - claude.svg: packages/static-svg/icons/claude.svg
 - openai.svg: packages/static-svg/icons/openai.svg
 - grok.svg: packages/static-svg/icons/grok.svg (white mark on a black tile)
+- antigravity.svg: packages/static-svg/icons/antigravity.svg
 
 MIT copyright (c) 2023 LobeHub; license in licenses/Lobe-Icons-LICENSE.txt.
 Original SVG paths are preserved. The Qt UI renders the marks in white on rounded

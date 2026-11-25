@@ -8,9 +8,9 @@
 
 **AI 사용 한도와 자주 여는 프로그램·파일을, Windows 바 하나에.**
 
-Claude · Codex · Grok · Grok Bot의 사용량과 초기화 시간을 확인하고, 프로그램·HTML·문서를 같은 바에서 여는 Windows 데스크톱 유틸리티입니다.
+Claude · Codex · Grok · Grok Bot · Antigravity의 사용량과 초기화 시간을 확인하고, 프로그램·HTML·문서를 같은 바에서 여는 Windows 데스크톱 유틸리티입니다.
 
-Windows 11 · Python 3.13 · PySide6 · **0.1.0a24 / Alpha** · [MIT](LICENSE)
+Windows 11 · Python 3.13 · PySide6 · **0.1.0a25 / Alpha** · [MIT](LICENSE)
 
 ![어두운 테마의 UsageDesk 바](docs/images/toolbar-dark.png)
 
@@ -18,7 +18,7 @@ Windows 11 · Python 3.13 · PySide6 · **0.1.0a24 / Alpha** · [MIT](LICENSE)
 
 ## 주요 기능
 
-- **네 서비스의 한도를 한곳에서** — Claude, ChatGPT 계정의 Codex, Grok CLI, Grok Bot 웹 계정의 한도를 표시합니다.
+- **다섯 서비스의 한도를 한곳에서** — Claude, ChatGPT 계정의 Codex, Grok CLI, Grok Bot 웹 계정과 Antigravity의 한도를 표시합니다.
 - **사용량 / 잔량 선택** — 숫자와 링을 함께 전환합니다.
 - **초기화까지 남은 시간** — `7d │ 초기화 23hr 44min`처럼 주기와 남은 시간을 구분합니다. 호버로 정확한 날짜·시각과 조회 상태를 확인합니다.
 - **떠 있는 바 / 상단·하단 고정 / 트레이 전용** — 드래그 이동, 작업 영역 확보, 바 없이 트레이만 표시하는 모드를 선택합니다.
@@ -101,6 +101,17 @@ Smart App Control이 자동 설치된 Python을 차단하면 보안 정책을 �
 ```
 
 ## 계정 연결
+
+**Antigravity · 0.1.0a25 추가**
+
+1. [공식 설치 안내](https://antigravity.google/docs/getting-started)에 따라 Antigravity CLI(`agy`)를 설치하고 같은 Google 계정으로 로그인합니다. Windows 기본 경로는 `%LOCALAPPDATA%\agy\bin\agy.exe`입니다. 앱·IDE와 CLI의 통합 로그인 지원은 설치 버전에 따라 확인하세요.
+2. `사용량 → Antigravity · Google 계정 → 로그인 / 다시 연결`을 엽니다. 자동으로 찾지 못하면 **agy.exe 선택**으로 경로를 지정하고 **현재 CLI 계정 연결**을 누릅니다.
+3. 공식 CLI의 `/usage` JSON에서 제공한 그룹과 초기화 시각을 표시합니다. Gemini 공유 한도, Claude/GPT 공유 한도, 별도 Argon·Neon 한도가 응답에 있을 때 각각 표시합니다. 모델 이름만 보고 독립 한도를 만들어 내지 않습니다.
+4. 사용량/잔량·호버·표시 항목 선택·서비스 숨김·선택적 CPU 표시를 지원합니다. 같은 그룹의 주간 한도가 소진되면 5시간 게이지도 사용 가능 잔량 0%로 표시하며 원본 수치는 호버에서 확인합니다. 제공되지 않은 값은 `—`로 표시합니다.
+
+Gemini 웹·앱의 기본 한도, Gemini CLI의 인증별 한도, 개인 Claude·ChatGPT 구독과 분리합니다. 추가 구매 AI 크레딧과 기본 한도도 다른 개념입니다. UsageDesk는 Google 로그인 정보·브라우저 쿠키·OAuth 토큰을 읽거나 저장하지 않습니다. CLI 경로와 연결 여부만 DPAPI로 저장하고, 조회·인증 갱신은 공식 CLI가 담당합니다. 연결 해제는 CLI 로그인을 해제하지 않습니다. Antigravity CLI는 EXE 번들에 포함하지 않습니다.
+
+형식 검증·취소·연결/복원/해제는 가짜 CLI 응답으로 검사합니다. 2026-11-25 Windows에서 Google 서명을 확인한 공식 CLI 1.5.16으로 기존 로그인과 실제 사용량 조회도 확인했습니다. 계정별 모델·한도 구성은 요금제와 반환 응답에 따릅니다.
 
 **Grok Bot · 0.1.0a23 추가**
 
@@ -213,9 +224,9 @@ Grok 응답에 현재 사용량 값이 없으면 마지막 성공 데이터를 �
 .\build.ps1
 ```
 
-현재 검증: **자동 테스트 436개**, Ruff, Windows EXE 시작·종료 검사. 바 길이 왕복 변경, 초기화 표시 유지, 상·하단 고정 및 트레이 복원과 웹 링크 등록·편집·기본 브라우저 실행을 검증합니다. 모니터 선택·분리·재연결은 자동 검사하고, 실제 150%·100% 배율의 두 모니터에서 양방향 이동·작업 영역 복구·재시작 복원을 확인했습니다. 모든 계정·플랜·PC 환경에서의 동작을 보장하는 것은 아닙니다.
+현재 검증: **자동 테스트 469개**, Ruff, Windows EXE 시작·종료 검사. 바 길이 왕복 변경, 초기화 표시 유지, 상·하단 고정 및 트레이 복원과 웹 링크 등록·편집·기본 브라우저 실행을 검증합니다. 모니터 선택·분리·재연결은 자동 검사하고, 실제 150%·100% 배율의 두 모니터에서 양방향 이동·작업 영역 복구·재시작 복원을 확인했습니다. 모든 계정·플랜·PC 환경에서의 동작을 보장하는 것은 아닙니다.
 
-빌드 결과는 `dist\0.1.0a24\UsageDesk\`에 생성됩니다. **EXE만 옮기지 말고 폴더 전체를 이동**해야 합니다. Python/Qt 의존성 고지와 라이브러리 교체 안내를 동봉합니다. `python scripts/package_release.py`로 바이너리·대응 소스 ZIP과 체크섬을 생성합니다. 서명하지 않은 알파 빌드입니다.
+빌드 결과는 `dist\0.1.0a25\UsageDesk\`에 생성됩니다. **EXE만 옮기지 말고 폴더 전체를 이동**해야 합니다. Python/Qt 의존성 고지와 라이브러리 교체 안내를 동봉합니다. `python scripts/package_release.py`로 바이너리·대응 소스 ZIP과 체크섬을 생성합니다. 서명하지 않은 알파 빌드입니다.
 
 README 화면은 다음 명령으로 다시 생성할 수 있습니다. 격리된 폴더와 예시 데이터만 사용합니다.
 

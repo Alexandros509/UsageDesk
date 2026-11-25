@@ -148,6 +148,7 @@ class Snapshot:
     warnings: list[str] = field(default_factory=list)
     aliases: dict[str, str] = field(default_factory=dict)
     extra_usage_enabled: bool = False
+    quota_groups: dict[str, str] = field(default_factory=dict)
 
 
 def normalize_usage(provider: str, body: dict, now: datetime | None = None) -> Snapshot:

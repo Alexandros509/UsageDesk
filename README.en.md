@@ -8,9 +8,9 @@
 
 **AI usage limits and your favorite programs and files, in one Windows toolbar.**
 
-UsageDesk is a Windows desktop utility that shows Claude, Codex, Grok and Grok Bot usage and reset times, and opens programs, HTML pages and documents from the same bar.
+UsageDesk is a Windows desktop utility that shows Claude, Codex, Grok, Grok Bot and Antigravity usage and reset times, and opens programs, HTML pages and documents from the same bar.
 
-Windows 11 · Python 3.13 · PySide6 · **0.1.0a24 / Alpha** · [MIT](LICENSE)
+Windows 11 · Python 3.13 · PySide6 · **0.1.0a25 / Alpha** · [MIT](LICENSE)
 
 ![UsageDesk toolbar in dark mode](docs/images/toolbar-dark-en.png)
 
@@ -20,7 +20,7 @@ Windows 11 · Python 3.13 · PySide6 · **0.1.0a24 / Alpha** · [MIT](LICENSE)
 
 ## Features
 
-- **Four services in one place** — View limits for Claude, Codex associated with a ChatGPT account, Grok CLI and Grok Bot web accounts.
+- **Five services in one place** — View limits for Claude, Codex associated with a ChatGPT account, Grok CLI, Grok Bot web accounts and Antigravity.
 - **Used or remaining quota** — Switch both percentages and rings together.
 - **Time until reset** — Separate the quota window from the countdown, for example `7d │ Reset 23hr 44min`. Hover for the exact reset date, time and fetch status.
 - **Floating, top-docked, bottom-docked or tray-only** — Drag the floating bar, reserve desktop work area with a docked bar, or keep only the tray icon.
@@ -103,6 +103,17 @@ Click a gauge to open the details window. Selecting tray-only mode under display
 - These are local settings. Changing the language does not rename your programs or paths. Operating-system dialogs retain the Windows language.
 
 ## Connecting accounts
+
+**Antigravity · added in 0.1.0a25**
+
+1. Install Antigravity CLI (`agy`) using the [official guide](https://antigravity.google/docs/getting-started) and sign in to the same Google account. The Windows default is `%LOCALAPPDATA%\agy\bin\agy.exe`. Check unified App/IDE/CLI sign-in support for your installed versions.
+2. Open `Usage → Antigravity · Google account → Sign in / Reconnect`. If discovery fails, use **Choose agy.exe**, then **Connect current CLI account**.
+3. Quota groups and reset times come from the official CLI's `/usage` JSON. Shared Gemini and Claude/GPT groups, plus separate Argon/Neon quotas, appear when supplied. A model name alone never creates a separate quota.
+4. Used/remaining quota, hover details, quota selection, service hiding and optional CPU display are supported. Exhausting a group's weekly quota also shows 0% usable remaining on its five-hour gauge; hover preserves the original values. Missing values appear as `—`.
+
+This is separate from Gemini Apps base quotas, authentication-specific Gemini CLI quotas and personal Claude/ChatGPT subscriptions. Purchased AI credits are also distinct from base quotas. UsageDesk does not read or store Google credentials, browser cookies or OAuth tokens. It saves only the CLI path and link preference using DPAPI; the official CLI performs quota queries and authentication renewal. Disconnecting in UsageDesk leaves the CLI signed in. The Antigravity CLI is not bundled.
+
+Schema checks, cancellation and connect/restore/disconnect are tested with synthetic CLI responses. On 2026-11-25, existing sign-in and live quota lookup were also verified on Windows using the Google-signed official CLI 1.5.16. Model access and quota groups depend on the plan and returned response.
 
 **Grok Bot · added in 0.1.0a23**
 
@@ -213,9 +224,9 @@ See the [release runbook](RUNBOOK.en.md) for preparation, publication review, Gi
 .\build.ps1
 ```
 
-Current validation: **436 automated tests**, Ruff and Windows EXE startup/shutdown checks. Coverage includes switching bar lengths back and forth, preserving reset-time display, top/bottom docking, restoration from tray mode, and registering, editing and opening web links in the default browser. Monitor selection, disconnect and reconnect are covered by automated tests. Bidirectional movement, work-area restoration and restart restoration were also checked on two physical monitors at 150% and 100% scaling. This does not guarantee operation across every account, plan or PC environment.
+Current validation: **469 automated tests**, Ruff and Windows EXE startup/shutdown checks. Coverage includes switching bar lengths back and forth, preserving reset-time display, top/bottom docking, restoration from tray mode, and registering, editing and opening web links in the default browser. Monitor selection, disconnect and reconnect are covered by automated tests. Bidirectional movement, work-area restoration and restart restoration were also checked on two physical monitors at 150% and 100% scaling. This does not guarantee operation across every account, plan or PC environment.
 
-Build output is written to `dist\0.1.0a24\UsageDesk\`. **Move the entire folder, not just the EXE.** Python/Qt notices and library replacement instructions are included. Run `python scripts/package_release.py` to produce binary and corresponding source ZIPs with checksums. This is an unsigned alpha build.
+Build output is written to `dist\0.1.0a25\UsageDesk\`. **Move the entire folder, not just the EXE.** Python/Qt notices and library replacement instructions are included. Run `python scripts/package_release.py` to produce binary and corresponding source ZIPs with checksums. This is an unsigned alpha build.
 
 Regenerate README screenshots with the following command. It uses only an isolated directory and synthetic data:
 

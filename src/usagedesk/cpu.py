@@ -6,7 +6,8 @@ from ctypes import wintypes
 from dataclasses import dataclass
 
 AI_EXECUTABLES = {'claude': {'claude.exe'}, 'codex': {'codex.exe'}, 'grok': {'grok.exe'},
-                  'grokbot': {'grok bot.exe', 'grokbot.exe'}}
+                  'grokbot': {'grok bot.exe', 'grokbot.exe'},
+                  'antigravity': {'agy.exe', 'antigravity.exe', 'antigravity ide.exe'}}
 
 
 @dataclass(frozen=True)

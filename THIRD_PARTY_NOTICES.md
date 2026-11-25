@@ -32,11 +32,20 @@ imply sponsorship or API compatibility guarantees.
 - Original license: [GrokBot-Usage-MIT.txt](licenses/GrokBot-Usage-MIT.txt).
 - Public response examples: https://github.com/steipete/CodexBar/issues/4545. No CodexBar source is included.
 
+## Antigravity usage protocol reference — MIT
+
+- Official command: https://antigravity.google/docs/cli/commands/usage/
+- JSON protocol reference: https://github.com/lobner/gemini-usage
+- Reviewed commit: `89c23ef416e073395903a6c280eb0e25a0f293cf`
+- Reference: `src/usage/mod.rs`, the `command.data.groups` response from `agy -p /usage --output-format json`.
+- Use: independently implemented bounded Windows subprocess adapter and group/bucket response parser. No upstream Rust implementation, Antigravity executable or Google credentials are bundled.
+- Original license: [Gemini-Usage-MIT.txt](licenses/Gemini-Usage-MIT.txt).
+
 ## Lobe Icons — MIT
 
 - Repository: https://github.com/lobehub/lobe-icons
 - Reviewed commit: `82e641b4fece9d1028a127149af9ded00df5ac0c`
-- Files: `packages/static-svg/icons/claude.svg`, `openai.svg`, `grok.svg`.
+- Files: `packages/static-svg/icons/claude.svg`, `openai.svg`, `grok.svg`, `antigravity.svg`.
 - Use: original SVG paths; white marks rendered on colored rounded tiles in the UI.
 - Copyright (c) 2023 LobeHub.
 - Original license: [Lobe-Icons-LICENSE.txt](licenses/Lobe-Icons-LICENSE.txt).

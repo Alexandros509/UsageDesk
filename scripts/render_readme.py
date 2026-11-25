@@ -27,6 +27,7 @@ from usagedesk.i18n import initialize, save_language  # noqa: E402
 save_language(data, args.language, "light")
 app = QApplication([])
 initialize(data, app)
+from usagedesk.antigravity import normalize_antigravity  # noqa: E402
 from usagedesk.domain import QuotaLimit  # noqa: E402
 from usagedesk.launcher import LauncherEntry  # noqa: E402
 from usagedesk.providers import Snapshot  # noqa: E402
@@ -61,6 +62,21 @@ window.usage.snapshots['grokbot'] = Snapshot(now, [
     QuotaLimit('weekly', ('Weekly allowance' if args.language == 'en' else '주간 한도'),
                38, now + timedelta(days=5), 604800),
 ])
+window.usage.snapshots['antigravity'] = normalize_antigravity({
+    'status': 'SUCCESS', 'command': {'name': 'usage', 'data': {'groups': [
+        {'name': 'Gemini Models', 'buckets': [
+            {'id': 'gemini-5h', 'window': '5h', 'remaining_fraction': .65,
+             'reset_time': (now + timedelta(hours=2, minutes=30)).isoformat()},
+            {'id': 'gemini-weekly', 'window': 'weekly', 'remaining_fraction': .8,
+             'reset_time': (now + timedelta(days=4)).isoformat()}]},
+        {'name': 'Gemini 4 Argon', 'buckets': [
+            {'id': 'argon-weekly', 'window': 'weekly', 'remaining_fraction': .45,
+             'reset_time': (now + timedelta(days=3)).isoformat()}]},
+        {'name': 'Claude and GPT models', 'buckets': [
+            {'id': 'partner-5h', 'window': '5h', 'remaining_fraction': .75,
+             'reset_time': (now + timedelta(hours=3)).isoformat()}]},
+    ]}},
+}, now)
 window.usage.render()
 for card in window.usage.cards.values():
     card[0].setText("Example data · No real account" if args.language == "en" else "예시 데이터 · 실제 계정과 무관")
@@ -114,6 +130,14 @@ bot_dialog.show()
 app.processEvents()
 bot_dialog.grab().save(str(output / ('grokbot-connect' + ('-en' if args.language == 'en' else '') + '.png')))
 bot_dialog.reject()
+from usagedesk.usage_ui import AntigravityLoginDialog  # noqa: E402
+
+antigravity_dialog = AntigravityLoginDialog(window)
+antigravity_dialog.path.setText(r'C:\UsageDeskDemo\agy.exe')
+antigravity_dialog.show()
+app.processEvents()
+antigravity_dialog.grab().save(str(output / ('antigravity-connect' + ('-en' if args.language == 'en' else '') + '.png')))
+antigravity_dialog.reject()
 window.entries += [LauncherEntry(f"Project Workspace {i}", rf"C:\UsageDeskDemo\{i}.html",
                                 r"C:\UsageDeskDemo") for i in range(8)]
 window.bar.options = replace(window.bar.options, programs=tuple(e.id for e in window.entries))
@@ -126,4 +150,4 @@ window.usage.shutdown()
 window.usage.pool.waitForDone()
 window.bar.hide()
 window.hide()
-print("Rendered 9 README screenshots with isolated synthetic data.")
+print("Rendered 10 README screenshots with isolated synthetic data.")

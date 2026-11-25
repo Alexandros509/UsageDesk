@@ -681,3 +681,32 @@ EN = {'UsageDesk 사용량 바': 'UsageDesk usage bar',
  '모니터로 이동': 'Move to monitor',
  'Grok Bot 웹 인증이 만료되었습니다. 같은 계정으로 로그인한 뒤 다시 연결하세요.':
      'Grok Bot web authentication has expired. Sign in to the same account and reconnect.'}
+
+EN.update({
+ '한도': 'Quota',
+ 'Antigravity CLI를 찾지 못했습니다. agy.exe 설치 경로를 선택하세요.':
+     'Antigravity CLI was not found. Choose the installed agy.exe.',
+ 'Antigravity CLI 조회에 실패했습니다. CLI에서 로그인과 /usage 동작을 확인하세요.':
+     'Antigravity CLI query failed. Check sign-in and /usage in the CLI.',
+ 'Antigravity 계정 연결': 'Connect Antigravity account',
+ '공식 Antigravity CLI의 /usage 결과로 Gemini·Argon·Neon·Claude/GPT 한도를 조회합니다. 공유 한도는 중복 표시하지 않습니다.':
+     'Read Gemini, Argon, Neon and Claude/GPT quotas from the official Antigravity CLI /usage command. Shared quotas appear only once.',
+ '로그인과 인증 갱신은 공식 CLI가 담당합니다. UsageDesk는 Google 비밀번호·쿠키·OAuth 토큰을 읽거나 저장하지 않고 CLI 경로와 연결 여부만 암호화해 저장합니다.':
+     'The official CLI handles sign-in and renewal. UsageDesk does not read or store Google passwords, cookies or OAuth tokens. Only the CLI path and link preference are saved with encryption.',
+ 'Antigravity CLI 실행 파일 · agy.exe': 'Antigravity CLI executable · agy.exe',
+ 'agy.exe 선택': 'Choose agy.exe',
+ '공식 CLI 설치 안내 열기': 'Open official CLI installation guide',
+ 'Antigravity CLI 로그인 열기': 'Open Antigravity CLI sign-in',
+ '이미 Antigravity에 로그인했다면 현재 CLI 계정을 연결하세요. /usage 조회 결과만 읽습니다.':
+     'Already signed in to Antigravity? Connect the current CLI account. Only /usage results are read.',
+ 'Antigravity CLI 선택': 'Choose Antigravity CLI',
+ 'Claude · Codex · Grok · Grok Bot · Antigravity 사용량 — 실험적 연동\n각 서비스의 계정 한도를 별도로 표시합니다. Antigravity의 공유 모델 그룹은 한 번만 표시합니다.':
+     'Claude · Codex · Grok · Grok Bot · Antigravity usage — Experimental integration\nAccount quotas are separate. Shared Antigravity model groups appear only once.',
+ 'Antigravity · Google 계정': 'Antigravity · Google account',
+ 'Claude·Codex·Grok Bot 웹 세션은 Windows 사용자 범위로 암호화됩니다. Grok 인증은 CLI와 공유합니다. Antigravity 인증은 공식 CLI가 관리하며, UsageDesk는 연결 설정만 저장합니다.':
+     'Claude/Codex credentials and Grok Bot web sessions are encrypted for this Windows user. Grok authentication is shared with the CLI. The official Antigravity CLI manages its authentication; UsageDesk saves only link settings.',
+ 'Antigravity 계정 한도입니다. Gemini 웹·앱, 개인 Claude·Codex 한도와 합산하지 않습니다.':
+     'Antigravity account quota. Separate from Gemini Apps and personal Claude/Codex quotas.',
+ '공유 그룹은 한 번만 표시하며, 별도 Argon·Neon 한도는 CLI가 제공한 경우에만 표시합니다.':
+     'Shared groups appear once. Separate Argon/Neon quotas appear only when reported by the CLI.',
+})
